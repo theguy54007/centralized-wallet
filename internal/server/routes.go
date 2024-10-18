@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"centralized-wallet/internal/repository"
+	"centralized-wallet/internal/user"
 	"centralized-wallet/internal/wallet"
 	"github.com/gin-gonic/gin"
 )
@@ -12,6 +13,14 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
 	r.GET("/health", s.healthHandler)
+
+	// Initialize UserRepository and UserService
+	userRepo := repository.NewUserRepository(s.db.GetDB())
+	userService := user.NewUserService(userRepo)
+
+	// User routes
+	r.POST("/register", user.RegistrationHandler(userService))
+	r.POST("/login", user.LoginHandler(userService))
 
 	// Initialize the WalletRepository and WalletService
 	// Initialize WalletService
