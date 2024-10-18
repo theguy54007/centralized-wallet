@@ -7,12 +7,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// type User struct {
-// 	ID       int    `json:"id"`
-// 	Email    string `json:"email"`
-// 	Password string `json:"-"`
-// }
-
 type UserRepositoryInterface interface {
 	CreateUser(email, password string) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)

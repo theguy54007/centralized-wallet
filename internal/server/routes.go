@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"centralized-wallet/internal/middleware"
 	"centralized-wallet/internal/repository"
 	"centralized-wallet/internal/user"
 	"centralized-wallet/internal/wallet"
@@ -23,15 +24,18 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.POST("/login", user.LoginHandler(userService))
 
 	// Initialize the WalletRepository and WalletService
-	// Initialize WalletService
 	walletRepo := repository.NewWalletRepository(s.db.GetDB()) // Assuming walletRepo is initialized in Server
 	walletService := wallet.NewWalletService(walletRepo)
 
-	// Wallet routes
-	r.GET("/wallets/:user_id/balance", wallet.BalanceHandler(walletService))
-	r.POST("/wallets/:user_id/deposit", wallet.DepositHandler(walletService))
-	r.POST("/wallets/:user_id/withdraw", wallet.WithdrawHandler(walletService))
-	r.POST("/wallets/transfer", wallet.TransferHandler(walletService))
+	// Wallet routes protected by JWT
+	walletRoutes := r.Group("/wallets")
+	walletRoutes.Use(middleware.JWTMiddleware()) // Apply JWT middleware to wallet routes
+	{
+		walletRoutes.GET("/balance", wallet.BalanceHandler(walletService))    // Get balance
+		walletRoutes.POST("/deposit", wallet.DepositHandler(walletService))   // Deposit money
+		walletRoutes.POST("/withdraw", wallet.WithdrawHandler(walletService)) // Withdraw money
+		walletRoutes.POST("/transfer", wallet.TransferHandler(walletService)) // Transfer money
+	}
 
 	return r
 }
