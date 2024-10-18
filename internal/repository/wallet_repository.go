@@ -11,6 +11,7 @@ type WalletRepositoryInterface interface {
 	Deposit(userID int, amount float64) error
 	Withdraw(userID int, amount float64) error
 	Transfer(fromUserID int, toUserID int, amount float64) error
+	UserExists(userID int) (bool, error)
 }
 
 type WalletRepository struct {

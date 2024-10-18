@@ -5,6 +5,7 @@ import (
 
 	"centralized-wallet/internal/middleware"
 	"centralized-wallet/internal/repository"
+	"centralized-wallet/internal/transaction"
 	"centralized-wallet/internal/user"
 	"centralized-wallet/internal/wallet"
 	"github.com/gin-gonic/gin"
@@ -23,18 +24,21 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.POST("/register", user.RegistrationHandler(userService))
 	r.POST("/login", user.LoginHandler(userService))
 
-	// Initialize the WalletRepository and WalletService
-	walletRepo := repository.NewWalletRepository(s.db.GetDB()) // Assuming walletRepo is initialized in Server
-	walletService := wallet.NewWalletService(walletRepo)
+	walletRepo := repository.NewWalletRepository(s.db.GetDB()) // Ensure this implements WalletRepositoryInterface
+	transactionRepo := repository.NewTransactionRepository(s.db.GetDB())
+
+	transactionService := transaction.NewTransactionService(transactionRepo) // Initialize TransactionService
+	walletService := wallet.NewWalletService(walletRepo, transactionService) // Pass WalletRepositoryInterface
 
 	// Wallet routes protected by JWT
 	walletRoutes := r.Group("/wallets")
 	walletRoutes.Use(middleware.JWTMiddleware()) // Apply JWT middleware to wallet routes
 	{
-		walletRoutes.GET("/balance", wallet.BalanceHandler(walletService))    // Get balance
-		walletRoutes.POST("/deposit", wallet.DepositHandler(walletService))   // Deposit money
-		walletRoutes.POST("/withdraw", wallet.WithdrawHandler(walletService)) // Withdraw money
-		walletRoutes.POST("/transfer", wallet.TransferHandler(walletService)) // Transfer money
+		walletRoutes.GET("/balance", wallet.BalanceHandler(walletService))                      // Get balance
+		walletRoutes.POST("/deposit", wallet.DepositHandler(walletService))                     // Deposit money
+		walletRoutes.POST("/withdraw", wallet.WithdrawHandler(walletService))                   // Withdraw money
+		walletRoutes.POST("/transfer", wallet.TransferHandler(walletService))                   // Transfer money
+		walletRoutes.GET("/transactions", wallet.TransactionHistoryHandler(transactionService)) // transaction history
 	}
 
 	return r

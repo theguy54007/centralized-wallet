@@ -35,6 +35,11 @@ migrate:
 	@echo "executing Migration..."
 	@go run cmd/migrate/main.go
 
+# make create-migration t=create_users_table
+create-migration:
+	@echo "executing Creating Migration..."
+	@migrate create -ext sql -dir ./migrations -seq $(t)
+
 # Test the application
 test:
 	@echo "Testing..."
