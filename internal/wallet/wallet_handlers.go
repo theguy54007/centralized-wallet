@@ -84,40 +84,6 @@ func WithdrawHandler(ws *WalletService) gin.HandlerFunc {
 	}
 }
 
-// TransferHandler allows the authenticated user to transfer money to another user's wallet
-// func TransferHandler(ws *WalletService) gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		// Get user ID from context (set by JWTMiddleware)
-// 		fromUserID, exists := c.Get("user_id")
-// 		if !exists {
-// 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
-// 			return
-// 		}
-
-// 		var request struct {
-// 			ToUserID int     `json:"to_user_id"`
-// 			Amount   float64 `json:"amount"`
-// 		}
-// 		if err := c.ShouldBindJSON(&request); err != nil {
-// 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
-// 			return
-// 		}
-
-// 		// Perform the transfer
-// 		err := ws.Transfer(fromUserID.(int), request.ToUserID, request.Amount)
-// 		if err != nil {
-// 			if err.Error() == "to_user_id does not exist" {
-// 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 				return
-// 			}
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 			return
-// 		}
-
-// 		c.JSON(http.StatusOK, gin.H{"message": "Transfer successful"})
-// 	}
-// }
-
 func TransferHandler(ws *WalletService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get user ID from context (set by JWTMiddleware)
