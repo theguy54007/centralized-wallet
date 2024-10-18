@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"centralized-wallet/internal/models"
@@ -83,14 +84,17 @@ func TestRegistrationHandler_DuplicateEmail(t *testing.T) {
 	assert.JSONEq(t, expectedResponse, w.Body.String())
 }
 
-// Test login handler
+// Test login handler with JWT
 func TestLoginHandler(t *testing.T) {
+	// Set JWT_SECRET environment variable for testing
+	os.Setenv("JWT_SECRET", "test-secret-key")
+
 	mockRepo := new(MockUserRepository)
 
 	// Generate the hash for "password123" directly in the test
 	hashedPassword, _ := repository.HashPassword("password123")
 
-	// Ensure the mock returns a non-nil *models.User object
+	// Mock GetUserByEmail to return a valid user
 	user := &models.User{
 		ID:       1,
 		Email:    "test@example.com",
@@ -111,8 +115,15 @@ func TestLoginHandler(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedResponse := `{"message":"Login successful","user":{"id":1,"email":"test@example.com"}}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	// Assert that the response contains a JWT token
+	assert.NotEmpty(t, response["token"])
+	assert.Equal(t, "Login successful", response["message"])
+	assert.Equal(t, map[string]interface{}{"id": float64(1), "email": "test@example.com"}, response["user"])
 }
 
 // Test login handler with incorrect password
