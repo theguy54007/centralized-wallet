@@ -30,6 +30,11 @@ docker-down:
 		docker-compose down; \
 	fi
 
+# migration
+migrate:
+	@echo "executing Migration..."
+	@go run cmd/migrate/main.go
+
 # Test the application
 test:
 	@echo "Testing..."
