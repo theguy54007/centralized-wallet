@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"centralized-wallet/internal/transaction"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -102,24 +103,51 @@ func TransferHandler(ws *WalletService) gin.HandlerFunc {
 			return
 		}
 
-		// Perform the transfer, check for user existence in the walletRepo.Transfer logic
-		err := ws.Transfer(fromUserID.(int), request.ToUserID, request.Amount)
+		// Check if the from_user_id exists
+		existsFromUser, err := ws.walletRepo.UserExists(fromUserID.(int))
+		if err != nil || !existsFromUser {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "from_user_id does not exist"})
+			return
+		}
+
+		// Check if the to_user_id exists
+		existsToUser, err := ws.walletRepo.UserExists(request.ToUserID)
+		if err != nil || !existsToUser {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "to_user_id does not exist"})
+			return
+		}
+
+		// Perform the transfer
+		err = ws.Transfer(fromUserID.(int), request.ToUserID, request.Amount)
 		if err != nil {
-			// Handle specific errors related to user existence
-			if err.Error() == "from_user_id does not exist" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "from_user_id does not exist"})
-				return
-			}
-			if err.Error() == "to_user_id does not exist" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "to_user_id does not exist"})
-				return
-			}
-			// Return a generic internal server error for other cases
+			// Handle other errors
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		// If transfer is successful
 		c.JSON(http.StatusOK, gin.H{"message": "Transfer successful"})
+	}
+}
+
+// TransactionHistoryHandler returns the transaction history for the authenticated user
+func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get the user ID from context (set by JWTMiddleware)
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+			return
+		}
+
+		// Fetch the transaction history for the user
+		transactions, err := ts.GetTransactionHistory(userID.(int))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Return the transactions as JSON
+		c.JSON(http.StatusOK, gin.H{"transactions": transactions})
 	}
 }
