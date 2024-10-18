@@ -3,6 +3,7 @@ package wallet
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -77,10 +78,58 @@ func TestWithdrawHandler(t *testing.T) {
 	assert.JSONEq(t, expectedResponse, w.Body.String())
 }
 
-// Test TransferHandler with both user IDs in the request body
-func TestTransferHandler(t *testing.T) {
+// Test TransferHandler with non-existent to_user_id
+func TestTransferHandler_ToUserNotExist(t *testing.T) {
 	mockRepo := new(MockWalletRepository)
-	mockRepo.On("Transfer", 1, 2, 50.0).Return(nil)
+	mockRepo.On("UserExists", 1).Return(true, nil)  // from_user_id exists
+	mockRepo.On("UserExists", 2).Return(false, nil) // to_user_id does not exist
+	mockRepo.On("Transfer", 1, 2, 50.0).Return(fmt.Errorf("to_user_id does not exist"))
+
+	walletService := NewWalletService(mockRepo)
+	router := setupRouter()
+	router.POST("/wallets/transfer", TransferHandler(walletService))
+
+	body := map[string]interface{}{"from_user_id": 1, "to_user_id": 2, "amount": 50.0}
+	bodyJSON, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", "/wallets/transfer", bytes.NewBuffer(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	expectedResponse := `{"error":"to_user_id does not exist"}`
+	assert.JSONEq(t, expectedResponse, w.Body.String())
+}
+
+// Test TransferHandler with non-existent from_user_id
+func TestTransferHandler_FromUserNotExist(t *testing.T) {
+	mockRepo := new(MockWalletRepository)
+	mockRepo.On("UserExists", 1).Return(false, nil) // from_user_id does not exist
+	mockRepo.On("UserExists", 2).Return(true, nil)  // to_user_id exists
+	mockRepo.On("Transfer", 1, 2, 50.0).Return(fmt.Errorf("from_user_id does not exist"))
+
+	walletService := NewWalletService(mockRepo)
+	router := setupRouter()
+	router.POST("/wallets/transfer", TransferHandler(walletService))
+
+	body := map[string]interface{}{"from_user_id": 1, "to_user_id": 2, "amount": 50.0}
+	bodyJSON, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", "/wallets/transfer", bytes.NewBuffer(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	expectedResponse := `{"error":"from_user_id does not exist"}`
+	assert.JSONEq(t, expectedResponse, w.Body.String())
+}
+
+// Test TransferHandler with valid from_user_id and to_user_id
+func TestTransferHandler_Success(t *testing.T) {
+	mockRepo := new(MockWalletRepository)
+	mockRepo.On("UserExists", 1).Return(true, nil)  // from_user_id exists
+	mockRepo.On("UserExists", 2).Return(true, nil)  // to_user_id exists
+	mockRepo.On("Transfer", 1, 2, 50.0).Return(nil) // Transfer succeeds
 
 	walletService := NewWalletService(mockRepo)
 	router := setupRouter()

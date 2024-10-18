@@ -95,8 +95,14 @@ func TransferHandler(ws *WalletService) gin.HandlerFunc {
 			return
 		}
 
+		// Perform the transfer
 		err := ws.Transfer(request.FromUserID, request.ToUserID, request.Amount)
 		if err != nil {
+			// Check for user existence errors
+			if err.Error() == "to_user_id does not exist" || err.Error() == "from_user_id does not exist" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
