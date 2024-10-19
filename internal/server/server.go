@@ -10,12 +10,14 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	"centralized-wallet/internal/database"
+	"centralized-wallet/internal/redis"
 )
 
 type Server struct {
 	port int
 
 	db database.Service
+	rd redis.RedisService
 }
 
 func NewServer() *http.Server {
@@ -24,6 +26,7 @@ func NewServer() *http.Server {
 		port: port,
 
 		db: database.New(),
+		rd: *redis.NewRedisService(),
 	}
 
 	// Declare Server config

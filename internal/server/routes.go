@@ -17,7 +17,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
 	// Health check route
-	r.GET("/health", s.healthHandler)
+	r.GET("/db-health", s.dbHealthHandler)
+	r.GET("/redis-health", s.redisHealthHandler)
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(s.db.GetDB())
@@ -37,8 +38,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 }
 
 // healthHandler returns the health status of the application
-func (s *Server) healthHandler(c *gin.Context) {
+func (s *Server) dbHealthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, s.db.Health())
+}
+
+// healthHandler returns the health status of the application
+func (s *Server) redisHealthHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, s.rd.Health(c))
 }
 
 // registerUserRoutes registers all routes related to users
