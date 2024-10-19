@@ -30,26 +30,50 @@ func (r *TransactionRepository) CreateTransaction(transaction *models.Transactio
 }
 
 // GetTransactionHistory fetches the transaction history for a given user
-func (tr *TransactionRepository) GetTransactionHistory(userID int) ([]models.Transaction, error) {
-	query := `SELECT id, from_user_id, to_user_id, transaction_type, amount, created_at
-	          FROM transactions
-	          WHERE from_user_id = $1 OR to_user_id = $1
-	          ORDER BY created_at DESC`
+func (repo *TransactionRepository) GetTransactionHistory(userID int, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+	transactions := []models.TransactionWithEmails{}
 
-	rows, err := tr.db.Query(query, userID)
+	query := `
+		SELECT t.id, t.from_user_id, f.email as from_email, t.to_user_id, tu.email as to_email, t.transaction_type, t.amount, t.created_at
+		FROM transactions t
+		LEFT JOIN users f ON t.from_user_id = f.id
+		LEFT JOIN users tu ON t.to_user_id = tu.id
+		WHERE t.from_user_id = $1 OR t.to_user_id = $1
+		ORDER BY t.created_at ` + orderBy + `
+		LIMIT $2`
+
+	// Execute the query
+	rows, err := repo.db.Query(query, userID, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var transactions []models.Transaction
+	// Iterate over the rows and scan the data into the struct
 	for rows.Next() {
-		var transaction models.Transaction
-		err := rows.Scan(&transaction.ID, &transaction.FromUserID, &transaction.ToUserID, &transaction.Type, &transaction.Amount, &transaction.CreatedAt)
+		var transaction models.TransactionWithEmails
+
+		// Scan the row into the TransactionWithEmails struct
+		err := rows.Scan(
+			&transaction.ID,
+			&transaction.FromUserID,
+			&transaction.FromEmail,
+			&transaction.ToUserID,
+			&transaction.ToEmail,
+			&transaction.Type,
+			&transaction.Amount,
+			&transaction.CreatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
+
 		transactions = append(transactions, transaction)
+	}
+
+	// Check for any error that might have occurred during iteration
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return transactions, nil

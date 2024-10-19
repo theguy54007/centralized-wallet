@@ -27,18 +27,6 @@ var (
 )
 
 func StartPostgresContainer(applyMigration bool) (func(context.Context) error, error) {
-	// If migration is enabled, provide the path to the migration files
-	// var initScripts []string
-	// if applyMigration {
-	// 	// Find migration files in the migrations directory
-	// 	// migrationFiles, err := filepath.Glob(filepath.Join(MigrationPath, "*.sql"))
-	// 	// if err != nil {
-	// 	// 	log.Fatalf("Error finding migration files: %v", err)
-	// 	// }
-	// 	// initScripts = migrationFiles
-	// 	ApplyMigrations()
-	// }
-
 	// Start the Postgres container with or without init scripts
 	dbContainer, err := postgres.Run(
 		context.Background(),
