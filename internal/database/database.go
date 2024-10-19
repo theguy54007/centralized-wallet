@@ -45,6 +45,11 @@ func New() Service {
 	if dbInstance != nil {
 		return dbInstance
 	}
+
+	initEnv()
+
+	log.Printf("Connecting to database with: postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		username, password, host, port, database)
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -119,4 +124,13 @@ func (s *service) Close() error {
 // GetDB returns the raw *sql.DB connection
 func (s *service) GetDB() *sql.DB {
 	return s.db
+}
+
+func initEnv() {
+	host = os.Getenv("DB_HOST")
+	port = os.Getenv("DB_PORT")
+	username = os.Getenv("DB_USERNAME")
+	password = os.Getenv("DB_PASSWORD")
+	database = os.Getenv("DB_DATABASE")
+	schema = os.Getenv("DB_SCHEMA")
 }

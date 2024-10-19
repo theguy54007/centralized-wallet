@@ -1,4 +1,4 @@
-package repository
+package wallet
 
 import (
 	"github.com/stretchr/testify/mock"

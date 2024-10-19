@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"centralized-wallet/internal/middleware"
 	"centralized-wallet/internal/models"
-	"centralized-wallet/internal/repository"
 	"centralized-wallet/internal/transaction"
 	"centralized-wallet/internal/user"
+	mockTransaction "centralized-wallet/tests/mocks/transaction"
+	"centralized-wallet/tests/mocks/wallet"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,8 +45,8 @@ func generateJWTForTest(userID int) string {
 }
 
 func TestBalanceHandler(t *testing.T) {
-	mockWalletRepo := new(repository.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockWalletRepo := new(wallet.MockWalletRepository)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 
 	mockWalletRepo.On("GetWalletBalance", 1).Return(100.0, nil)
 
@@ -67,8 +68,8 @@ func TestBalanceHandler(t *testing.T) {
 
 // Test DepositHandler with JWT authentication
 func TestDepositHandler(t *testing.T) {
-	mockWalletRepo := new(repository.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockWalletRepo := new(wallet.MockWalletRepository)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 
 	// Mock the deposit and transaction recording
 	mockWalletRepo.On("Deposit", 1, 50.0).Return(nil)
@@ -101,8 +102,8 @@ func TestDepositHandler(t *testing.T) {
 // Test WithdrawHandler with JWT authentication
 // Test WithdrawHandler with JWT authentication
 func TestWithdrawHandler(t *testing.T) {
-	mockWalletRepo := new(repository.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockWalletRepo := new(wallet.MockWalletRepository)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 
 	// Mock the withdraw and transaction recording
 	mockWalletRepo.On("Withdraw", 1, 50.0).Return(nil)
@@ -134,8 +135,8 @@ func TestWithdrawHandler(t *testing.T) {
 
 // Test TransferHandler with non-existent to_user_id
 func TestTransferHandler_ToUserNotExist(t *testing.T) {
-	mockWalletRepo := new(repository.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockWalletRepo := new(wallet.MockWalletRepository)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 
 	// Mock user existence and transfer failure
 	mockWalletRepo.On("UserExists", 1).Return(true, nil)  // from_user_id exists
@@ -168,8 +169,8 @@ func TestTransferHandler_ToUserNotExist(t *testing.T) {
 
 // Test TransferHandler with non-existent from_user_id
 func TestTransferHandler_FromUserNotExist(t *testing.T) {
-	mockWalletRepo := new(repository.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockWalletRepo := new(wallet.MockWalletRepository)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 
 	// Mock user existence for sender (from_user_id does not exist)
 	mockWalletRepo.On("UserExists", 1).Return(false, nil) // from_user_id does not exist
@@ -205,8 +206,8 @@ func TestTransferHandler_FromUserNotExist(t *testing.T) {
 
 // Test TransferHandler with valid from_user_id and to_user_id
 func TestTransferHandler_Success(t *testing.T) {
-	mockWalletRepo := new(repository.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockWalletRepo := new(wallet.MockWalletRepository)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 
 	// Mock the Withdraw method (from sender)
 	mockWalletRepo.On("UserExists", 1).Return(true, nil)
@@ -250,14 +251,14 @@ func TestTransferHandler_Success(t *testing.T) {
 
 func TestTransactionHistoryHandler(t *testing.T) {
 	// Mock the transaction service
-	mockTransactionService := new(transaction.MockTransactionService)
+	mockTransactionService := new(mockTransaction.MockTransactionService)
 	mockTransactionService.On("GetTransactionHistory", 1).Return([]models.Transaction{
 		{ID: 1, Type: "deposit", Amount: 100.00, CreatedAt: time.Now()},
 		{ID: 2, Type: "withdraw", Amount: 50.00, CreatedAt: time.Now()},
 	}, nil)
 
 	// Mock the wallet repository (if needed)
-	mockWalletRepo := new(repository.MockWalletRepository)
+	mockWalletRepo := new(wallet.MockWalletRepository)
 
 	// Directly use the mockTransactionService in the router setup
 	walletService := NewWalletService(mockWalletRepo, mockTransactionService)

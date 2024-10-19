@@ -11,38 +11,16 @@ import (
 
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/repository"
+	"centralized-wallet/tests/mocks/user"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock UserRepository
-type MockUserRepository struct {
-	mock.Mock
-}
-
-// Ensure MockUserRepository implements UserRepositoryInterface
-var _ repository.UserRepositoryInterface = &MockUserRepository{}
-
-func (m *MockUserRepository) CreateUser(email, password string) (*models.User, error) {
-	args := m.Called(email, password)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
-func (m *MockUserRepository) GetUserByEmail(email string) (*models.User, error) {
-	args := m.Called(email)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.User), args.Error(1)
-}
-
 // Test registration handler
 func TestRegistrationHandler(t *testing.T) {
-	mockRepo := new(MockUserRepository)
+	mockRepo := new(user.MockUserRepository)
 	mockRepo.On("CreateUser", "test@example.com", "password123").Return(&models.User{ID: 1, Email: "test@example.com"}, nil)
 
 	userService := NewUserService(mockRepo)
@@ -64,7 +42,7 @@ func TestRegistrationHandler(t *testing.T) {
 
 // Test registration handler with duplicate email
 func TestRegistrationHandler_DuplicateEmail(t *testing.T) {
-	mockRepo := new(MockUserRepository)
+	mockRepo := new(user.MockUserRepository)
 	mockRepo.On("CreateUser", "test@example.com", "password123").Return(nil, errors.New("email already in use"))
 
 	userService := NewUserService(mockRepo)
@@ -89,7 +67,7 @@ func TestLoginHandler(t *testing.T) {
 	// Set JWT_SECRET environment variable for testing
 	os.Setenv("JWT_SECRET", "test-secret-key")
 
-	mockRepo := new(MockUserRepository)
+	mockRepo := new(user.MockUserRepository)
 
 	// Generate the hash for "password123" directly in the test
 	hashedPassword, _ := repository.HashPassword("password123")
@@ -128,7 +106,7 @@ func TestLoginHandler(t *testing.T) {
 
 // Test login handler with incorrect password
 func TestLoginHandler_IncorrectPassword(t *testing.T) {
-	mockRepo := new(MockUserRepository)
+	mockRepo := new(user.MockUserRepository)
 	mockRepo.On("GetUserByEmail", "test@example.com").Return(&models.User{ID: 1, Email: "test@example.com", Password: "$2a$10$7eqZbIx8VpHhF.B4Gz3POOt.3GpG8k5.3RhqMf.jI6BrLJhHGOba2"}, nil)
 	mockRepo.On("VerifyPassword", mock.Anything, "wrongpassword").Return(errors.New("invalid password"))
 

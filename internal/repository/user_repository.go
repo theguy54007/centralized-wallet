@@ -4,6 +4,7 @@ import (
 	"centralized-wallet/internal/models"
 	"database/sql"
 	"errors"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
