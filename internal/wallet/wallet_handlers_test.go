@@ -250,45 +250,64 @@ func TestTransferHandler_Success(t *testing.T) {
 }
 
 func TestTransactionHistoryHandler(t *testing.T) {
-	// Mock the transaction service
 	mockTransactionService := new(mockTransaction.MockTransactionService)
-	mockTransactionService.On("GetTransactionHistory", 1).Return([]models.Transaction{
-		{ID: 1, Type: "deposit", Amount: 100.00, CreatedAt: time.Now()},
-		{ID: 2, Type: "withdraw", Amount: 50.00, CreatedAt: time.Now()},
-	}, nil)
+	router := setupRouterWithMiddleware(nil, mockTransactionService)
 
-	// Mock the wallet repository (if needed)
-	mockWalletRepo := new(wallet.MockWalletRepository)
+	userId := 1
+	email := "user1@example.com"
+	now := time.Now()
 
-	// Directly use the mockTransactionService in the router setup
-	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
+	// Mock transaction history response
+	transactions := []models.TransactionWithEmails{
+		{
+			Transaction: models.Transaction{
+				ID:         1,
+				FromUserID: nil,
+				ToUserID:   &userId,
+				Type:       "deposit",
+				Amount:     100.0,
+				CreatedAt:  now,
+			},
+			FromEmail: nil,
+			ToEmail:   &email,
+		},
+		{
+			Transaction: models.Transaction{
+				ID:         2,
+				FromUserID: &userId,
+				ToUserID:   nil,
+				Type:       "withdraw",
+				Amount:     50.0,
+				CreatedAt:  now,
+			},
+			FromEmail: &email,
+			ToEmail:   nil,
+		},
+	}
 
-	// Setup router with the middleware and transaction handler
-	router := setupRouterWithMiddleware(walletService, mockTransactionService)
+	// Mocking the service method
+	mockTransactionService.On("GetTransactionHistory", 1, "desc", 10).Return(transactions, nil)
 
 	// Generate JWT for user ID 1
 	token := generateJWTForTest(1)
 
-	// Perform the request to fetch transaction history
-	req, _ := http.NewRequest("GET", "/wallets/transactions", nil)
+	// Make a request with query parameters for sorting and limit
+	req, _ := http.NewRequest("GET", "/wallets/transactions?order=desc&limit=10", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Check the status code
+	// Check the response
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	// Parse the response body
-	var response struct {
-		Transactions []models.Transaction `json:"transactions"`
-	}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
+	// Update expected response to handle null values correctly
+	expectedResponse := fmt.Sprintf(`{
+		"transactions": [
+			{"id":1,"from_user_id":null,"to_user_id":1,"from_email":null,"to_email":"%s","type":"deposit","amount":100.0,"created_at":"%s"},
+			{"id":2,"from_user_id":1,"to_user_id":null,"from_email":"%s","to_email":null,"type":"withdraw","amount":50.0,"created_at":"%s"}
+		]
+	}`, email, now.Format(time.RFC3339Nano), email, now.Format(time.RFC3339Nano))
 
-	// Check the response data
-	assert.Len(t, response.Transactions, 2)
-	assert.Equal(t, "deposit", response.Transactions[0].Type)
-	assert.Equal(t, 100.00, response.Transactions[0].Amount)
-	assert.Equal(t, "withdraw", response.Transactions[1].Type)
-	assert.Equal(t, 50.00, response.Transactions[1].Amount)
+	// Use JSONEq to compare the expected and actual responses
+	assert.JSONEq(t, expectedResponse, w.Body.String())
 }

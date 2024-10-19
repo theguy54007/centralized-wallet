@@ -11,3 +11,9 @@ type Transaction struct {
 	Amount     float64   `json:"amount"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+type TransactionWithEmails struct {
+	Transaction         // Embedding the existing Transaction struct
+	FromEmail   *string `json:"from_email"`
+	ToEmail     *string `json:"to_email"`
+}

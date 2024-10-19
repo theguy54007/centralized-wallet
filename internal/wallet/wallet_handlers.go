@@ -3,6 +3,7 @@ package wallet
 import (
 	"centralized-wallet/internal/transaction"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -134,15 +135,36 @@ func TransferHandler(ws *WalletService) gin.HandlerFunc {
 // TransactionHistoryHandler returns the transaction history for the authenticated user
 func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get the user ID from context (set by JWTMiddleware)
-		userID, exists := c.Get("user_id")
+		// Get the user ID from the context (set by JWT middleware)
+		userIDInterface, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
 			return
 		}
 
-		// Fetch the transaction history for the user
-		transactions, err := ts.GetTransactionHistory(userID.(int))
+		userID, ok := userIDInterface.(int)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		// Parse query parameters for sorting and limiting
+		orderBy := c.DefaultQuery("order", "desc")
+		if orderBy != "asc" && orderBy != "desc" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order, must be 'asc' or 'desc'"})
+			return
+		}
+
+		const maxLimit = 100
+		limitStr := c.DefaultQuery("limit", "10")
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 || limit > maxLimit {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit, must be between 1 and 100"})
+			return
+		}
+
+		// Get the transaction history from the service
+		transactions, err := ts.GetTransactionHistory(userID, orderBy, limit)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

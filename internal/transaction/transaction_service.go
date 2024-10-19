@@ -8,7 +8,7 @@ import (
 
 type TransactionServiceInterface interface {
 	RecordTransaction(fromUserID, toUserID *int, transactionType string, amount float64) error
-	GetTransactionHistory(userID int) ([]models.Transaction, error)
+	GetTransactionHistory(userID int, orderBy string, limit int) ([]models.TransactionWithEmails, error)
 }
 
 type TransactionService struct {
@@ -32,6 +32,6 @@ func (ts *TransactionService) RecordTransaction(fromUserID, toUserID *int, trans
 }
 
 // GetTransactionHistory retrieves the transaction history for a specific user
-func (ts *TransactionService) GetTransactionHistory(userID int) ([]models.Transaction, error) {
-	return ts.repo.GetTransactionHistory(userID)
+func (ts *TransactionService) GetTransactionHistory(userID int, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+	return ts.repo.GetTransactionHistory(userID, orderBy, limit)
 }

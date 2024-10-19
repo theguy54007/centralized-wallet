@@ -80,9 +80,21 @@ func TestGetTransactionHistory(t *testing.T) {
 	// Reuse the initialized database connection
 	transactionRepo := &TransactionRepository{db: dbService.GetDB()}
 
-	// Insert mock transactions into the DB
+	// Insert mock users
 	fromUserID := 1
 	toUserID := 2
+	fromUserEmail := "from_user@example.com"
+	toUserEmail := "to_user@example.com"
+
+	_, err := dbService.GetDB().Exec(`
+		INSERT INTO users (id, email, password) VALUES
+		($1, $2, 'password1'),
+		($3, $4, 'password2')`,
+		fromUserID, fromUserEmail, toUserID, toUserEmail,
+	)
+	assert.NoError(t, err)
+
+	// Insert mock transaction into the DB
 	transaction := &models.Transaction{
 		FromUserID: &fromUserID,
 		ToUserID:   &toUserID,
@@ -91,11 +103,11 @@ func TestGetTransactionHistory(t *testing.T) {
 		CreatedAt:  time.Now(),
 	}
 
-	err := transactionRepo.CreateTransaction(transaction)
+	err = transactionRepo.CreateTransaction(transaction)
 	assert.NoError(t, err)
 
 	// Retrieve transaction history for user 1
-	transactions, err := transactionRepo.GetTransactionHistory(1)
+	transactions, err := transactionRepo.GetTransactionHistory(1, "DESC", 1)
 	assert.NoError(t, err)
 	assert.Len(t, transactions, 1)
 
@@ -104,6 +116,11 @@ func TestGetTransactionHistory(t *testing.T) {
 	assert.Equal(t, toUserID, *transactions[0].ToUserID)
 	assert.Equal(t, "transfer", transactions[0].Type)
 	assert.Equal(t, 100.0, transactions[0].Amount)
+
+	// Verify the emails
+	assert.Equal(t, fromUserEmail, *transactions[0].FromEmail)
+	assert.Equal(t, toUserEmail, *transactions[0].ToEmail)
+
 	cleanDB(t)
 }
 

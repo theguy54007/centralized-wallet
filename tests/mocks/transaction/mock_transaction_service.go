@@ -15,7 +15,7 @@ func (m *MockTransactionService) RecordTransaction(fromID, ToUserID *int, transa
 	return args.Error(0)
 }
 
-func (m *MockTransactionService) GetTransactionHistory(userID int) ([]models.Transaction, error) {
-	args := m.Called(userID)
-	return args.Get(0).([]models.Transaction), args.Error(1)
+func (m *MockTransactionService) GetTransactionHistory(userID int, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+	args := m.Called(userID, orderBy, limit)
+	return args.Get(0).([]models.TransactionWithEmails), args.Error(1)
 }
