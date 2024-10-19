@@ -3,10 +3,11 @@ package transaction
 import (
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/repository"
+	"time"
 )
 
 type TransactionServiceInterface interface {
-	RecordTransaction(userID int, transactionType string, amount float64) error
+	RecordTransaction(fromUserID, toUserID *int, transactionType string, amount float64) error
 	GetTransactionHistory(userID int) ([]models.Transaction, error)
 }
 
@@ -19,8 +20,15 @@ func NewTransactionService(repo *repository.TransactionRepository) *TransactionS
 }
 
 // RecordTransaction records a transaction
-func (ts *TransactionService) RecordTransaction(userID int, transactionType string, amount float64) error {
-	return ts.repo.RecordTransaction(userID, transactionType, amount)
+func (ts *TransactionService) RecordTransaction(fromUserID, toUserID *int, transactionType string, amount float64) error {
+	transaction := models.Transaction{
+		FromUserID: fromUserID,
+		ToUserID:   toUserID,
+		Type:       transactionType,
+		Amount:     amount,
+		CreatedAt:  time.Now(),
+	}
+	return ts.repo.CreateTransaction(&transaction)
 }
 
 // GetTransactionHistory retrieves the transaction history for a specific user
