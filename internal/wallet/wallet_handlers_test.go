@@ -17,24 +17,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	// "github.com/stretchr/testify/mock"
 )
 
-func setupRouterWithMiddleware(walletService *WalletService, transactionService transaction.TransactionServiceInterface) *gin.Engine {
+var (
+	testUserID   = 1
+	testToUserID = 2
+	testAmount   = 50.0
+	testEmail    = "user1@example.com"
+)
+
+var now = time.Now()
+
+// Helper function to setup the router with services
+func setupRouter(walletService *WalletService, transactionService transaction.TransactionServiceInterface) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
-	// Apply the JWT middleware to all wallet-related routes
 	walletRoutes := router.Group("/wallets")
-	walletRoutes.Use(middleware.JWTMiddleware()) // Use middleware
+	walletRoutes.Use(middleware.JWTMiddleware())
 	{
 		walletRoutes.GET("/balance", BalanceHandler(walletService))
 		walletRoutes.POST("/deposit", DepositHandler(walletService))
 		walletRoutes.POST("/withdraw", WithdrawHandler(walletService))
 		walletRoutes.POST("/transfer", TransferHandler(walletService))
-		walletRoutes.GET("/transactions", TransactionHistoryHandler(transactionService)) // Pass TransactionServiceInterface
+		walletRoutes.GET("/transactions", TransactionHistoryHandler(transactionService))
 	}
-
 	return router
 }
 
@@ -44,270 +51,215 @@ func generateJWTForTest(userID int) string {
 	return token
 }
 
+// Helper function to prepare and execute a request
+func executeRequest(router *gin.Engine, method, url string, body interface{}, token string) *httptest.ResponseRecorder {
+	var reqBody []byte
+	if body != nil {
+		reqBody, _ = json.Marshal(body)
+	}
+	req, _ := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
+}
+
+// Balance Handler Test
 func TestBalanceHandler(t *testing.T) {
 	mockWalletRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(mockTransaction.MockTransactionService)
 
-	mockWalletRepo.On("GetWalletBalance", 1).Return(100.0, nil)
+	mockWalletRepo.On("GetWalletBalance", testUserID).Return(100.0, nil)
 
 	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
-	router := setupRouterWithMiddleware(walletService, mockTransactionService) // Now it works
+	router := setupRouter(walletService, mockTransactionService)
 
 	// Generate JWT for user ID 1
-	token := generateJWTForTest(1)
+	token := generateJWTForTest(testUserID)
 
-	req, _ := http.NewRequest("GET", "/wallets/balance", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	w := executeRequest(router, "GET", "/wallets/balance", nil, token)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedResponse := `{"balance":100}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+	assert.JSONEq(t, `{"balance":100}`, w.Body.String())
 }
 
-// Test DepositHandler with JWT authentication
+// Deposit Handler Test
 func TestDepositHandler(t *testing.T) {
 	mockWalletRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(mockTransaction.MockTransactionService)
 
-	// Mock the deposit and transaction recording
-	userID := 1
-	mockWalletRepo.On("Deposit", userID, 50.0).Return(nil)
-	mockTransactionService.On("RecordTransaction", (*int)(nil), &userID, "deposit", 50.0).Return(nil)
+	mockWalletRepo.On("Deposit", testUserID, testAmount).Return(nil)
+	mockTransactionService.On("RecordTransaction", (*int)(nil), &testUserID, "deposit", testAmount).Return(nil)
 
-	// Create wallet service and router
 	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
-	router := setupRouterWithMiddleware(walletService, mockTransactionService)
+	router := setupRouter(walletService, mockTransactionService)
 
-	// Prepare the request body
-	body := map[string]interface{}{"amount": 50.0}
-	bodyJSON, _ := json.Marshal(body)
+	body := map[string]interface{}{"amount": testAmount}
+	token := generateJWTForTest(testUserID)
 
-	// Generate JWT for user ID 1
-	token := generateJWTForTest(1)
+	w := executeRequest(router, "POST", "/wallets/deposit", body, token)
 
-	// Make the request
-	req, _ := http.NewRequest("POST", "/wallets/deposit", bytes.NewBuffer(bodyJSON))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	// Check the response
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedResponse := `{"message":"Deposit successful"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+	assert.JSONEq(t, `{"message":"Deposit successful"}`, w.Body.String())
 }
 
+// Withdraw Handler Test
 func TestWithdrawHandler(t *testing.T) {
 	mockWalletRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(mockTransaction.MockTransactionService)
 
-	// Mock the successful withdrawal
-	mockWalletRepo.On("Withdraw", 1, 50.0).Return(nil)
-
-	userID := 1
-	mockTransactionService.On("RecordTransaction", &userID, (*int)(nil), "withdraw", 50.0).Return(nil)
+	mockWalletRepo.On("Withdraw", testUserID, testAmount).Return(nil)
+	mockTransactionService.On("RecordTransaction", &testUserID, (*int)(nil), "withdraw", testAmount).Return(nil)
 
 	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
-	router := setupRouterWithMiddleware(walletService, mockTransactionService)
+	router := setupRouter(walletService, mockTransactionService)
 
-	body := map[string]interface{}{"amount": 50.0}
-	bodyJSON, _ := json.Marshal(body)
+	body := map[string]interface{}{"amount": testAmount}
+	token := generateJWTForTest(testUserID)
 
-	// Generate JWT for user ID 1
-	token := generateJWTForTest(1)
-
-	req, _ := http.NewRequest("POST", "/wallets/withdraw", bytes.NewBuffer(bodyJSON))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	w := executeRequest(router, "POST", "/wallets/withdraw", body, token)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedResponse := `{"message":"Withdrawal successful"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+	assert.JSONEq(t, `{"message":"Withdrawal successful"}`, w.Body.String())
 }
 
-// Test TransferHandler with non-existent to_user_id
-func TestTransferHandler_ToUserNotExist(t *testing.T) {
+// Transfer Handler Tests
+func TestTransferHandler(t *testing.T) {
 	mockWalletRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(mockTransaction.MockTransactionService)
 
-	// Mock user existence and transfer failure
-	fromUserId, toUserId := 1, 2
-	mockWalletRepo.On("UserExists", fromUserId).Return(true, nil) // from_user_id exists
-	mockWalletRepo.On("UserExists", toUserId).Return(false, nil)  // to_user_id does not exist
-	mockWalletRepo.On("Transfer", fromUserId, toUserId, 50.0).Return(fmt.Errorf("to_user_id does not exist"))
+	// Define the test cases
+	testCases := []struct {
+		name             string
+		fromUserId       int
+		toUserId         int
+		amount           float64
+		mockSetup        func()
+		expectedStatus   int
+		expectedResponse string
+	}{
+		{
+			name:       "ToUserNotExist",
+			fromUserId: 1,
+			toUserId:   2,
+			amount:     50.0,
+			mockSetup: func() {
+				mockWalletRepo.On("UserExists", 1).Return(true, nil)  // from_user_id exists
+				mockWalletRepo.On("UserExists", 2).Return(false, nil) // to_user_id does not exist
+			},
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `{"error":"to_user_id does not exist"}`,
+		},
+		{
+			name:       "FromUserNotExist",
+			fromUserId: 1,
+			toUserId:   2,
+			amount:     50.0,
+			mockSetup: func() {
+				mockWalletRepo.On("UserExists", 1).Return(false, nil) // from_user_id does not exist
+				mockWalletRepo.On("UserExists", 2).Return(true, nil)  // to_user_id exists
+			},
+			expectedStatus:   http.StatusBadRequest,
+			expectedResponse: `{"error":"from_user_id does not exist"}`,
+		},
+		{
+			name:       "Success",
+			fromUserId: 1,
+			toUserId:   2,
+			amount:     50.0,
+			mockSetup: func() {
+				mockWalletRepo.On("UserExists", 1).Return(true, nil) // from_user_id exists
+				mockWalletRepo.On("UserExists", 2).Return(true, nil) // to_user_id exists
+				mockWalletRepo.On("Withdraw", 1, 50.0).Return(nil)   // Withdraw from sender
+				mockWalletRepo.On("Deposit", 2, 50.0).Return(nil)    // Deposit to receiver
+				mockTransactionService.On("RecordTransaction", &testUserID, &testToUserID, "transfer", 50.0).Return(nil)
+			},
+			expectedStatus:   http.StatusOK,
+			expectedResponse: `{"message":"Transfer successful"}`,
+		},
+	}
 
-	// Create wallet service and router
-	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
-	router := setupRouterWithMiddleware(walletService, mockTransactionService)
+	// Iterate over the test cases
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Reset mocks for the specific test case
+			mockWalletRepo.ExpectedCalls = nil
+			mockTransactionService.ExpectedCalls = nil
 
-	// Prepare the request body
-	body := map[string]interface{}{"to_user_id": 2, "amount": 50.0}
-	bodyJSON, _ := json.Marshal(body)
+			// Setup mocks for the specific test case
+			tc.mockSetup()
 
-	// Generate JWT for user ID 1
-	token := generateJWTForTest(1)
+			// Create wallet service and router
+			walletService := NewWalletService(mockWalletRepo, mockTransactionService)
+			router := setupRouter(walletService, mockTransactionService)
 
-	// Make the request
-	req, _ := http.NewRequest("POST", "/wallets/transfer", bytes.NewBuffer(bodyJSON))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	fmt.Println(w.Body.String())
-	// Check the response
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedResponse := `{"error":"to_user_id does not exist"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+			// Prepare the request body
+			body := map[string]interface{}{"to_user_id": tc.toUserId, "amount": tc.amount}
+			// bodyJSON, _ := json.Marshal(body)
+
+			// Generate JWT for the sender (from_user_id)
+			token := generateJWTForTest(tc.fromUserId)
+
+			// Execute the request using the reusable function
+			w := executeRequest(router, "POST", "/wallets/transfer", body, token)
+
+			// Assert status code and response body
+			assert.Equal(t, tc.expectedStatus, w.Code)
+			assert.JSONEq(t, tc.expectedResponse, w.Body.String())
+
+			// Assert that all mocked methods were called
+			mockWalletRepo.AssertExpectations(t)
+			mockTransactionService.AssertExpectations(t)
+		})
+	}
 }
 
-// Test TransferHandler with non-existent from_user_id
-func TestTransferHandler_FromUserNotExist(t *testing.T) {
-	mockWalletRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(mockTransaction.MockTransactionService)
-
-	// Mock user existence for sender (from_user_id does not exist)
-	fromUserId, toUserId := 1, 2
-	mockWalletRepo.On("UserExists", fromUserId).Return(false, nil) // from_user_id does not exist
-
-	// Mock user existence for receiver (to_user_id exists)
-	mockWalletRepo.On("UserExists", toUserId).Return(true, nil) // to_user_id exists
-
-	mockWalletRepo.On("Transfer", fromUserId, toUserId, 50.0).Return(fmt.Errorf("from_user_id does not exist"))
-
-	// Create wallet service and router
-	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
-	router := setupRouterWithMiddleware(walletService, mockTransactionService)
-
-	// Prepare the request body
-	body := map[string]interface{}{"to_user_id": 2, "amount": 50.0}
-	bodyJSON, _ := json.Marshal(body)
-
-	// Generate JWT for user ID 1 (from_user_id)
-	token := generateJWTForTest(1)
-
-	// Make the request
-	req, _ := http.NewRequest("POST", "/wallets/transfer", bytes.NewBuffer(bodyJSON))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	// Check the response
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedResponse := `{"error":"from_user_id does not exist"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
-}
-
-// Test TransferHandler with valid from_user_id and to_user_id
-func TestTransferHandler_Success(t *testing.T) {
-	mockWalletRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(mockTransaction.MockTransactionService)
-
-	fromUserId, toUserId := 1, 2
-	// Mock the Withdraw method (from sender)
-	mockWalletRepo.On("UserExists", fromUserId).Return(true, nil)
-	mockWalletRepo.On("UserExists", toUserId).Return(true, nil)
-	mockWalletRepo.On("Withdraw", fromUserId, 50.0).Return(nil)
-
-	// Mock the Deposit method (to receiver)
-	mockWalletRepo.On("Deposit", toUserId, 50.0).Return(nil)
-
-	// Mock transaction recording for both users
-	mockTransactionService.On("RecordTransaction", &fromUserId, &toUserId, "transfer", 50.0).Return(nil)
-	// mockTransactionService.On("RecordTransaction", "transfer in", 50.0).Return(nil)
-
-	// Create wallet service and router
-	walletService := NewWalletService(mockWalletRepo, mockTransactionService)
-	router := setupRouterWithMiddleware(walletService, mockTransactionService)
-
-	// Prepare the request body
-	body := map[string]interface{}{"to_user_id": 2, "amount": 50.0}
-	bodyJSON, _ := json.Marshal(body)
-
-	// Generate JWT for user ID 1 (sender)
-	token := generateJWTForTest(1)
-
-	// Make the request
-	req, _ := http.NewRequest("POST", "/wallets/transfer", bytes.NewBuffer(bodyJSON))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	// Check the response
-	assert.Equal(t, http.StatusOK, w.Code)
-	expectedResponse := `{"message":"Transfer successful"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
-
-	// Assert that all mocked methods were called
-	mockWalletRepo.AssertExpectations(t)
-	mockTransactionService.AssertExpectations(t)
-}
-
+// Transaction History Test
 func TestTransactionHistoryHandler(t *testing.T) {
 	mockTransactionService := new(mockTransaction.MockTransactionService)
-	router := setupRouterWithMiddleware(nil, mockTransactionService)
+	router := setupRouter(nil, mockTransactionService)
 
-	userId := 1
-	email := "user1@example.com"
-	now := time.Now()
-
-	// Mock transaction history response
 	transactions := []models.TransactionWithEmails{
 		{
 			Transaction: models.Transaction{
 				ID:         1,
 				FromUserID: nil,
-				ToUserID:   &userId,
+				ToUserID:   &testUserID,
 				Type:       "deposit",
 				Amount:     100.0,
 				CreatedAt:  now,
 			},
 			FromEmail: nil,
-			ToEmail:   &email,
+			ToEmail:   &testEmail,
 		},
 		{
 			Transaction: models.Transaction{
 				ID:         2,
-				FromUserID: &userId,
+				FromUserID: &testUserID,
 				ToUserID:   nil,
 				Type:       "withdraw",
-				Amount:     50.0,
+				Amount:     testAmount,
 				CreatedAt:  now,
 			},
-			FromEmail: &email,
+			FromEmail: &testEmail,
 			ToEmail:   nil,
 		},
 	}
 
-	// Mocking the service method
-	mockTransactionService.On("GetTransactionHistory", 1, "desc", 10).Return(transactions, nil)
+	mockTransactionService.On("GetTransactionHistory", testUserID, "desc", 10).Return(transactions, nil)
 
-	// Generate JWT for user ID 1
-	token := generateJWTForTest(1)
+	token := generateJWTForTest(testUserID)
 
-	// Make a request with query parameters for sorting and limit
-	req, _ := http.NewRequest("GET", "/wallets/transactions?order=desc&limit=10", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	w := executeRequest(router, "GET", "/wallets/transactions?order=desc&limit=10", nil, token)
 
-	// Check the response
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// Update expected response to handle null values correctly
 	expectedResponse := fmt.Sprintf(`{
 		"transactions": [
 			{"id":1,"from_user_id":null,"to_user_id":1,"from_email":null,"to_email":"%s","type":"deposit","amount":100.0,"created_at":"%s"},
 			{"id":2,"from_user_id":1,"to_user_id":null,"from_email":"%s","to_email":null,"type":"withdraw","amount":50.0,"created_at":"%s"}
 		]
-	}`, email, now.Format(time.RFC3339Nano), email, now.Format(time.RFC3339Nano))
+	}`, testEmail, now.Format(time.RFC3339Nano), testEmail, now.Format(time.RFC3339Nano))
 
-	// Use JSONEq to compare the expected and actual responses
+	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedResponse, w.Body.String())
 }

@@ -96,9 +96,10 @@ func TransferHandler(ws *WalletService) gin.HandlerFunc {
 			return
 		}
 
+		// Parse and validate request payload
 		var request struct {
-			ToUserID int     `json:"to_user_id"`
-			Amount   float64 `json:"amount"`
+			ToUserID int     `json:"to_user_id" binding:"required"`
+			Amount   float64 `json:"amount" binding:"required,gt=0"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
@@ -122,7 +123,7 @@ func TransferHandler(ws *WalletService) gin.HandlerFunc {
 		// Perform the transfer
 		err = ws.Transfer(fromUserID.(int), request.ToUserID, request.Amount)
 		if err != nil {
-			// Handle other errors
+			// Handle other errors (such as insufficient balance, etc.)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
