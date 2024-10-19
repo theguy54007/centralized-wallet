@@ -31,10 +31,13 @@ docker-down:
 	fi
 
 # migration
-migrate:
+db-migrate:
 	@echo "executing Migration..."
-	@go run cmd/migrate/main.go
+	@go run cmd/migrate/main.go --direction=up
 
+db-rollback:
+	@echo "executing Rollback Migration..."
+	@go run cmd/migrate/main.go --direction=down --steps=$(or ${s},1)
 # make create-migration t=create_users_table
 create-migration:
 	@echo "executing Creating Migration..."
