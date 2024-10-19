@@ -2,8 +2,9 @@ package wallet
 
 import (
 	"centralized-wallet/internal/transaction"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 // BalanceHandler returns the wallet balance of the authenticated user
@@ -27,10 +28,10 @@ func BalanceHandler(ws *WalletService) gin.HandlerFunc {
 	}
 }
 
-// DepositHandler allows the authenticated user to deposit money into their wallet
+// DepositHandler allows the user to deposit money into their wallet
 func DepositHandler(ws *WalletService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get user ID from context (set by JWTMiddleware)
+		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
@@ -59,7 +60,7 @@ func DepositHandler(ws *WalletService) gin.HandlerFunc {
 // WithdrawHandler allows the authenticated user to withdraw money from their wallet
 func WithdrawHandler(ws *WalletService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get user ID from context (set by JWTMiddleware)
+		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
@@ -104,14 +105,14 @@ func TransferHandler(ws *WalletService) gin.HandlerFunc {
 		}
 
 		// Check if the from_user_id exists
-		existsFromUser, err := ws.walletRepo.UserExists(fromUserID.(int))
+		existsFromUser, err := ws.UserExists(fromUserID.(int))
 		if err != nil || !existsFromUser {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "from_user_id does not exist"})
 			return
 		}
 
 		// Check if the to_user_id exists
-		existsToUser, err := ws.walletRepo.UserExists(request.ToUserID)
+		existsToUser, err := ws.UserExists(request.ToUserID)
 		if err != nil || !existsToUser {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "to_user_id does not exist"})
 			return

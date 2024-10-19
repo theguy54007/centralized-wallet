@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"centralized-wallet/internal/models"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -9,8 +10,8 @@ type MockTransactionService struct {
 	mock.Mock
 }
 
-func (m *MockTransactionService) RecordTransaction(userID int, transactionType string, amount float64) error {
-	args := m.Called(userID, transactionType, amount)
+func (m *MockTransactionService) RecordTransaction(fromID, ToUserID *int, transactionType string, amount float64) error {
+	args := m.Called(fromID, ToUserID, transactionType, amount)
 	return args.Error(0)
 }
 

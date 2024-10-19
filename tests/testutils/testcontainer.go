@@ -2,14 +2,14 @@ package testutils
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
-	// "github.com/golang-migrate/migrate/v4/database/pgx"
-
+	"github.com/golang-migrate/migrate/v4"
+	pgM "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -28,29 +28,29 @@ var (
 
 func StartPostgresContainer(applyMigration bool) (func(context.Context) error, error) {
 	// If migration is enabled, provide the path to the migration files
-	var initScripts []string
-	if applyMigration {
-		// Find migration files in the migrations directory
-		migrationFiles, err := filepath.Glob(filepath.Join(MigrationPath, "*.sql"))
-		if err != nil {
-			log.Fatalf("Error finding migration files: %v", err)
-		}
-		initScripts = migrationFiles
-	}
+	// var initScripts []string
+	// if applyMigration {
+	// 	// Find migration files in the migrations directory
+	// 	// migrationFiles, err := filepath.Glob(filepath.Join(MigrationPath, "*.sql"))
+	// 	// if err != nil {
+	// 	// 	log.Fatalf("Error finding migration files: %v", err)
+	// 	// }
+	// 	// initScripts = migrationFiles
+	// 	ApplyMigrations()
+	// }
 
 	// Start the Postgres container with or without init scripts
 	dbContainer, err := postgres.Run(
 		context.Background(),
 		"postgres:latest",
+		// postgres.WithInitScripts(initScripts...),
 		postgres.WithDatabase(Database),
 		postgres.WithUsername(Username),
 		postgres.WithPassword(Password),
-		// Apply init scripts if migration is enabled
-		postgres.WithInitScripts(initScripts...),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
-				WithStartupTimeout(5*time.Second),
+				WithStartupTimeout(10*time.Second),
 		),
 	)
 	if err != nil {
@@ -73,6 +73,13 @@ func StartPostgresContainer(applyMigration bool) (func(context.Context) error, e
 
 	log.Printf("Postgres container started at %s:%s", Host, Port)
 
+	// Apply migrations if required
+	if applyMigration {
+		if err := applyMigrations(); err != nil {
+			return dbContainer.Terminate, fmt.Errorf("failed to apply migrations: %v", err)
+		}
+	}
+
 	return dbContainer.Terminate, nil
 }
 
@@ -83,29 +90,6 @@ func TeardownContainer(teardown func(context.Context) error) {
 	}
 }
 
-func findProjectRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		// Check if we're in the project root by looking for the "migrations" directory
-		if _, err := os.Stat(filepath.Join(dir, "migrations")); !os.IsNotExist(err) {
-			return dir, nil
-		}
-
-		// Move one level up in the directory tree
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// We've reached the root of the file system without finding the project root
-			return "", fmt.Errorf("could not find project root")
-		}
-
-		dir = parent
-	}
-}
-
 func InitEnv() {
 	os.Setenv("DB_HOST", Host)
 	os.Setenv("DB_PORT", Port)
@@ -113,4 +97,65 @@ func InitEnv() {
 	os.Setenv("DB_PASSWORD", Password)
 	os.Setenv("DB_DATABASE", Database)
 	os.Setenv("DB_SCHEMA", Schema)
+}
+
+func applyMigrations() error {
+	// Set up connection string
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", Username, Password, Host, Port, Database, Schema)
+
+	// Connect to the database
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		return fmt.Errorf("could not connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Create migration driver using the DB connection
+	driver, err := pgM.WithInstance(db, &pgM.Config{})
+	if err != nil {
+		return fmt.Errorf("could not create database driver: %v", err)
+	}
+
+	// Initialize the migration instance
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://"+MigrationPath, // Migration files location
+		"postgres",              // Database name
+		driver,
+	)
+	if err != nil {
+		return fmt.Errorf("could not initialize migration: %v", err)
+	}
+
+	// Run migrations
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("migration failed: %v", err)
+	}
+
+	// log.Println("Migrations applied successfully")
+	return nil
+}
+
+func CleanDatabase(db *sql.DB) error {
+	// List all the tables to truncate
+	tables := []string{"transactions", "wallets", "users"} // Add your tables here
+
+	// Disable constraints to allow truncation in the right order
+	if _, err := db.Exec("SET session_replication_role = 'replica';"); err != nil {
+		return fmt.Errorf("could not disable constraints: %v", err)
+	}
+
+	// Truncate all tables
+	for _, table := range tables {
+		if _, err := db.Exec(fmt.Sprintf("TRUNCATE TABLE %s CASCADE;", table)); err != nil {
+			return fmt.Errorf("could not truncate table %s: %v", table, err)
+		}
+	}
+
+	// Re-enable constraints
+	if _, err := db.Exec("SET session_replication_role = 'origin';"); err != nil {
+		return fmt.Errorf("could not re-enable constraints: %v", err)
+	}
+
+	log.Println("Database cleaned successfully")
+	return nil
 }
