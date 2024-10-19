@@ -1,8 +1,8 @@
 package wallet
 
 import (
-	"centralized-wallet/internal/repository"
-	"centralized-wallet/internal/transaction"
+	"centralized-wallet/tests/mocks/transaction"
+	"centralized-wallet/tests/mocks/wallet"
 	"errors"
 	"testing"
 
@@ -12,7 +12,7 @@ import (
 
 // Test GetBalance
 func TestGetBalance(t *testing.T) {
-	mockRepo := new(repository.MockWalletRepository)
+	mockRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(transaction.MockTransactionService)
 	mockRepo.On("GetWalletBalance", 1).Return(100.0, nil)
 
@@ -26,7 +26,7 @@ func TestGetBalance(t *testing.T) {
 
 // Test Deposit
 func TestDeposit(t *testing.T) {
-	mockRepo := new(repository.MockWalletRepository)
+	mockRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(transaction.MockTransactionService)
 
 	// Mock the Deposit method on the repository
@@ -51,7 +51,7 @@ func TestDeposit(t *testing.T) {
 
 // Test Withdraw (with sufficient funds)
 func TestWithdraw_SufficientFunds(t *testing.T) {
-	mockRepo := new(repository.MockWalletRepository)
+	mockRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(transaction.MockTransactionService)
 
 	// Mock the Withdraw method on the repository
@@ -76,7 +76,7 @@ func TestWithdraw_SufficientFunds(t *testing.T) {
 
 // Test Withdraw (with insufficient funds)
 func TestWithdraw_InsufficientFunds(t *testing.T) {
-	mockRepo := new(repository.MockWalletRepository)
+	mockRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(transaction.MockTransactionService)
 
 	// Mock the Withdraw method to simulate insufficient funds
@@ -98,7 +98,7 @@ func TestWithdraw_InsufficientFunds(t *testing.T) {
 }
 
 func TestTransfer(t *testing.T) {
-	mockRepo := new(repository.MockWalletRepository)
+	mockRepo := new(wallet.MockWalletRepository)
 	mockTransactionService := new(transaction.MockTransactionService)
 
 	// Mock the Withdraw method for the sender (user 1)

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"centralized-wallet/tests/testutils"
 	"context"
 	"log"
 	"testing"
@@ -54,10 +55,14 @@ func mustStartPostgresContainer() (func(context.Context) error, error) {
 }
 
 func TestMain(m *testing.M) {
-	teardown, err := mustStartPostgresContainer()
+	// teardown, err := mustStartPostgresContainer()
+	teardown, err := testutils.StartPostgresContainer(false)
 	if err != nil {
 		log.Fatalf("could not start postgres container: %v", err)
 	}
+
+	// Set the environment variables for the DB connection
+	testutils.InitEnv()
 
 	m.Run()
 
