@@ -48,9 +48,12 @@ func (s *Server) registerWalletRoutes(r *gin.Engine, walletService *wallet.Walle
 	walletRoutes := r.Group("/wallets")
 	walletRoutes.Use(auth.JWTMiddleware(s.blackListService)) // Apply JWT middleware to all wallet routes
 
-	walletRoutes.GET("/balance", wallet.BalanceHandler(walletService))                      // Get balance
-	walletRoutes.POST("/deposit", wallet.DepositHandler(walletService))                     // Deposit money
-	walletRoutes.POST("/withdraw", wallet.WithdrawHandler(walletService))                   // Withdraw money
-	walletRoutes.POST("/transfer", wallet.TransferHandler(walletService))                   // Transfer money
+	walletRoutes.GET("/balance", wallet.BalanceHandler(walletService))    // Get balance
+	walletRoutes.POST("/deposit", wallet.DepositHandler(walletService))   // Deposit money
+	walletRoutes.POST("/withdraw", wallet.WithdrawHandler(walletService)) // Withdraw money
+	walletRoutes.POST("/transfer", wallet.TransferHandler(walletService))
+
+	walletRoutes.Use(wallet.WalletNumberMiddleware(s.walletService, &s.rd))
+
 	walletRoutes.GET("/transactions", wallet.TransactionHistoryHandler(transactionService)) // transaction history
 }

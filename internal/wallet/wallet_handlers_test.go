@@ -5,6 +5,7 @@ import (
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/models"
 	mockAuth "centralized-wallet/tests/mocks/auth"
+	mockRedis "centralized-wallet/tests/mocks/redis"
 	mockTransaction "centralized-wallet/tests/mocks/transaction"
 	mockWallet "centralized-wallet/tests/mocks/wallet"
 	"fmt"
@@ -17,12 +18,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 var mockHandlerTestHelper struct {
 	transactionSerivce *mockTransaction.MockTransactionService
 	walletService      *mockWallet.MockWalletService
 	blacklistService   *mockAuth.MockBlacklistService
+	redisClient        *mockRedis.MockRedisClient
 }
 
 // Helper function to setup the router with services
@@ -31,6 +34,9 @@ func setupHandlerMock() {
 	mockHandlerTestHelper.transactionSerivce = new(mockTransaction.MockTransactionService)
 	mockHandlerTestHelper.walletService = new(mockWallet.MockWalletService)
 	mockHandlerTestHelper.blacklistService = new(mockAuth.MockBlacklistService)
+	mockHandlerTestHelper.redisClient = new(mockRedis.MockRedisClient)
+
+	mockHandlerTestHelper.redisClient.On("Get", mock.Anything, "user:1:wallet_number").Return(testFromWalletNumber, nil)
 }
 
 func setupRouter() *gin.Engine {
@@ -48,7 +54,10 @@ func setupRouter() *gin.Engine {
 		walletRoutes.POST("/deposit", DepositHandler(mockHandlerTestHelper.walletService))
 		walletRoutes.POST("/withdraw", WithdrawHandler(mockHandlerTestHelper.walletService))
 		walletRoutes.POST("/transfer", TransferHandler(mockHandlerTestHelper.walletService))
-		walletRoutes.GET("/transactions", TransactionHistoryHandler(mockHandlerTestHelper.transactionSerivce))
+		walletRoutes.GET("/transactions",
+			WalletNumberMiddleware(mockHandlerTestHelper.walletService, mockHandlerTestHelper.redisClient),
+			TransactionHistoryHandler(mockHandlerTestHelper.transactionSerivce),
+		)
 	}
 	return router
 }
@@ -170,47 +179,51 @@ func TestTransferHandler(t *testing.T) {
 	// Define the test cases
 	testCases := []struct {
 		name             string
-		fromUserId       int
-		toUserId         int
+		userID           int
+		fromWalletNumber string
+		toWalletNumber   string
 		amount           float64
 		mockSetup        func()
 		expectedStatus   int
 		expectedResponse string
 	}{
 		{
-			name:       "ToUserNotExist",
-			fromUserId: testUserID,
-			toUserId:   testToUserID,
-			amount:     50.0,
+			name:             "ToUserNotExist",
+			userID:           testUserID,
+			fromWalletNumber: testFromWalletNumber,
+			toWalletNumber:   testToWalletNumber,
+			amount:           50.0,
 			mockSetup: func() {
 				// Mock Transfer with user existence failure, returning the correct typed nil
-				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToUserID, 50.0).
+				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToWalletNumber, 50.0).
 					Return((*models.Wallet)(nil), fmt.Errorf("to_user_id does not exist"))
 			},
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `{"status":"error","error":"to_user_id does not exist"}`,
 		},
 		{
-			name:       "FromUserNotExist",
-			fromUserId: testUserID,
-			toUserId:   testToUserID,
-			amount:     50.0,
+			name:             "FromUserNotExist",
+			userID:           testUserID,
+			fromWalletNumber: testFromWalletNumber,
+			toWalletNumber:   testToWalletNumber,
+			amount:           50.0,
 			mockSetup: func() {
 				// Mock Transfer with user existence failure, returning the correct typed nil
-				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToUserID, 50.0).
+				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToWalletNumber, 50.0).
 					Return((*models.Wallet)(nil), fmt.Errorf("from_user_id does not exist"))
 			},
 			expectedStatus:   http.StatusBadRequest,
 			expectedResponse: `{"status":"error","error":"from_user_id does not exist"}`,
 		},
 		{
-			name:       "Success",
-			fromUserId: testUserID,
-			toUserId:   testToUserID,
-			amount:     50.0,
+			name:             "Success",
+			userID:           testUserID,
+			fromWalletNumber: testFromWalletNumber,
+			toWalletNumber:   testToWalletNumber,
+			amount:           50.0,
 			mockSetup: func() {
 				// Mock successful transfer, returning a valid wallet
-				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToUserID, 50.0).
+				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToWalletNumber, 50.0).
 					Return(&models.Wallet{
 						UserID:    testUserID,
 						Balance:   100.0,
@@ -218,7 +231,7 @@ func TestTransferHandler(t *testing.T) {
 					}, nil)
 
 				// Mock recording the transaction
-				mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", &testUserID, &testToUserID, "transfer", 50.0).Return(nil)
+				mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", &testUserID, &testToWalletNumber, "transfer", 50.0).Return(nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedResponse: fmt.Sprintf(`{
@@ -241,10 +254,10 @@ func TestTransferHandler(t *testing.T) {
 			tc.mockSetup()
 
 			// Prepare the request body
-			body := map[string]interface{}{"to_user_id": tc.toUserId, "amount": tc.amount}
+			body := map[string]interface{}{"to_wallet_number": tc.toWalletNumber, "amount": tc.amount}
 
 			// Generate JWT for the sender (from_user_id)
-			token := generateJWTForTest(tc.fromUserId)
+			token := generateJWTForTest(tc.userID)
 
 			// Execute the request using the reusable function
 			w := executeRequest(router, "POST", "/wallets/transfer", body, token)
@@ -263,31 +276,31 @@ func TestTransactionHistoryHandler(t *testing.T) {
 	transactions := []models.TransactionWithEmails{
 		{
 			Transaction: models.Transaction{
-				ID:         1,
-				FromUserID: nil,
-				ToUserID:   &testUserID,
-				Type:       "deposit",
-				Amount:     100.0,
-				CreatedAt:  now,
+				ID:               1,
+				FromWalletNumber: nil,
+				ToWalletNumber:   &testToWalletNumber,
+				Type:             "deposit",
+				Amount:           100.0,
+				CreatedAt:        now,
 			},
 			FromEmail: nil,
 			ToEmail:   &testEmail,
 		},
 		{
 			Transaction: models.Transaction{
-				ID:         2,
-				FromUserID: &testUserID,
-				ToUserID:   nil,
-				Type:       "withdraw",
-				Amount:     testAmount,
-				CreatedAt:  now,
+				ID:               2,
+				FromWalletNumber: &testFromWalletNumber,
+				ToWalletNumber:   nil,
+				Type:             "withdraw",
+				Amount:           testAmount,
+				CreatedAt:        now,
 			},
 			FromEmail: &testEmail,
 			ToEmail:   nil,
 		},
 	}
 
-	mockHandlerTestHelper.transactionSerivce.On("GetTransactionHistory", testUserID, "desc", 10).Return(transactions, nil)
+	mockHandlerTestHelper.transactionSerivce.On("GetTransactionHistory", testFromWalletNumber, "desc", 10).Return(transactions, nil)
 
 	token := generateJWTForTest(testUserID)
 
@@ -295,11 +308,28 @@ func TestTransactionHistoryHandler(t *testing.T) {
 
 	expectedResponse := fmt.Sprintf(`{
 		"transactions": [
-			{"id":1,"from_user_id":null,"to_user_id":1,"from_email":null,"to_email":"%s","type":"deposit","amount":100.0,"created_at":"%s"},
-			{"id":2,"from_user_id":1,"to_user_id":null,"from_email":"%s","to_email":null,"type":"withdraw","amount":50.0,"created_at":"%s"}
+			{
+				"id":1,
+				"from_wallet_number":null,
+				"to_wallet_number":"%s",
+				"from_email":null,
+				"to_email":"%s",
+				"type":"deposit",
+				"amount":100.0,
+				"created_at":"%s"
+			},
+			{
+				"id":2,
+				"from_wallet_number":"%s",
+				"to_wallet_number":null,
+				"from_email":"%s",
+				"to_email":null,
+				"type":"withdraw",
+				"amount":50.0,
+				"created_at":"%s"
+			}
 		]
-	}`, testEmail, now.Format(time.RFC3339Nano), testEmail, now.Format(time.RFC3339Nano))
-
+	}`, testToWalletNumber, testEmail, now.Format(time.RFC3339Nano), testFromWalletNumber, testEmail, now.Format(time.RFC3339Nano))
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedResponse, w.Body.String())
 }

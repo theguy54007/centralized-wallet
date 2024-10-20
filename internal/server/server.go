@@ -40,10 +40,10 @@ func NewServer() *http.Server {
 	transactionRepo := repository.NewTransactionRepository(dbService.GetDB())
 
 	// Initialize services
-	userService := user.NewUserService(userRepo)
+
 	transactionService := transaction.NewTransactionService(transactionRepo)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
-
+	userService := user.NewUserService(userRepo, walletService)
 	NewServer := &Server{
 		port: port,
 

@@ -45,28 +45,28 @@ func TestCreateTransaction(t *testing.T) {
 	// Reuse the initialized database connection
 	transactionRepo := &TransactionRepository{db: dbService.GetDB()}
 
+	fromWalletNumber := "WAL-1-20231010-ABC123" // Example wallet number
+	toWalletNumber := "WAL-2-20231010-DEF456"
 	// Test a transfer transaction
-	fromUserID := 1
-	toUserID := 2
 	transaction := &models.Transaction{
-		FromUserID: &fromUserID,
-		ToUserID:   &toUserID,
-		Type:       "transfer",
-		Amount:     100.0,
-		CreatedAt:  time.Now(),
+		FromWalletNumber: &fromWalletNumber,
+		ToWalletNumber:   &toWalletNumber,
+		Type:             "transfer",
+		Amount:           100.0,
+		CreatedAt:        time.Now(),
 	}
 
 	err := transactionRepo.CreateTransaction(transaction)
 	assert.NoError(t, err)
 
 	// Test a deposit transaction
-	toUserID = 1
+	toWalletNumber = "WAL-1-20231010-ABC123" // Updating to the same wallet number for deposit
 	transaction = &models.Transaction{
-		FromUserID: nil,
-		ToUserID:   &toUserID,
-		Type:       "deposit",
-		Amount:     200.0,
-		CreatedAt:  time.Now(),
+		FromWalletNumber: nil,
+		ToWalletNumber:   &toWalletNumber,
+		Type:             "deposit",
+		Amount:           200.0,
+		CreatedAt:        time.Now(),
 	}
 
 	err = transactionRepo.CreateTransaction(transaction)
@@ -75,14 +75,13 @@ func TestCreateTransaction(t *testing.T) {
 	cleanDB(t)
 }
 
-// TestGetTransactionHistory tests the retrieval of a user's transaction history
 func TestGetTransactionHistory(t *testing.T) {
 	// Reuse the initialized database connection
 	transactionRepo := &TransactionRepository{db: dbService.GetDB()}
 
-	// Insert mock users
-	fromUserID := 1
-	toUserID := 2
+	// Insert mock wallets
+	fromWalletNumber := "WAL-1-20231010-ABC123" // Example wallet number for from user
+	toWalletNumber := "WAL-2-20231010-DEF456"   // Example wallet number for to user
 	fromUserEmail := "from_user@example.com"
 	toUserEmail := "to_user@example.com"
 
@@ -90,36 +89,63 @@ func TestGetTransactionHistory(t *testing.T) {
 		INSERT INTO users (id, email, password) VALUES
 		($1, $2, 'password1'),
 		($3, $4, 'password2')`,
-		fromUserID, fromUserEmail, toUserID, toUserEmail,
+		1, fromUserEmail, 2, toUserEmail,
+	)
+	assert.NoError(t, err)
+
+	_, err = dbService.GetDB().Exec(`
+		INSERT INTO wallets (user_id, wallet_number, balance) VALUES
+		(1, $1, 1000),
+		(2, $2, 2000)`,
+		fromWalletNumber, toWalletNumber,
 	)
 	assert.NoError(t, err)
 
 	// Insert mock transaction into the DB
 	transaction := &models.Transaction{
-		FromUserID: &fromUserID,
-		ToUserID:   &toUserID,
-		Type:       "transfer",
-		Amount:     100.0,
-		CreatedAt:  time.Now(),
+		FromWalletNumber: &fromWalletNumber,
+		ToWalletNumber:   &toWalletNumber,
+		Type:             "transfer",
+		Amount:           100.0,
+		CreatedAt:        time.Now(),
 	}
 
 	err = transactionRepo.CreateTransaction(transaction)
 	assert.NoError(t, err)
 
-	// Retrieve transaction history for user 1
-	transactions, err := transactionRepo.GetTransactionHistory(1, "DESC", 1)
+	// Retrieve transaction history for the first wallet
+	transactions, err := transactionRepo.GetTransactionHistory(fromWalletNumber, "DESC", 1)
 	assert.NoError(t, err)
 	assert.Len(t, transactions, 1)
 
-	// Verify the transaction details
-	assert.Equal(t, fromUserID, *transactions[0].FromUserID)
-	assert.Equal(t, toUserID, *transactions[0].ToUserID)
+	// Verify the transaction details with nil checks
+	if transactions[0].FromWalletNumber != nil {
+		assert.Equal(t, fromWalletNumber, *transactions[0].FromWalletNumber)
+	} else {
+		t.Errorf("Expected FromWalletNumber to be %s, but got nil", fromWalletNumber)
+	}
+
+	if transactions[0].ToWalletNumber != nil {
+		assert.Equal(t, toWalletNumber, *transactions[0].ToWalletNumber)
+	} else {
+		t.Errorf("Expected ToWalletNumber to be %s, but got nil", toWalletNumber)
+	}
+
 	assert.Equal(t, "transfer", transactions[0].Type)
 	assert.Equal(t, 100.0, transactions[0].Amount)
 
 	// Verify the emails
-	assert.Equal(t, fromUserEmail, *transactions[0].FromEmail)
-	assert.Equal(t, toUserEmail, *transactions[0].ToEmail)
+	if transactions[0].FromEmail != nil {
+		assert.Equal(t, fromUserEmail, *transactions[0].FromEmail)
+	} else {
+		t.Errorf("Expected FromEmail to be %s, but got nil", fromUserEmail)
+	}
+
+	if transactions[0].ToEmail != nil {
+		assert.Equal(t, toUserEmail, *transactions[0].ToEmail)
+	} else {
+		t.Errorf("Expected ToEmail to be %s, but got nil", toUserEmail)
+	}
 
 	cleanDB(t)
 }

@@ -16,6 +16,11 @@ type RedisService struct {
 	Client *redis.Client
 }
 
+type RedisServiceInterface interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+}
+
 var (
 	address  string
 	port     string
@@ -88,6 +93,16 @@ func (r *RedisService) Health(ctx context.Context) map[string]string {
 	stats["redis_pool_size_percentage"] = fmt.Sprintf("%.2f%%", calculatePoolUtilization(poolStats))
 
 	return stats
+}
+
+// Implement the Get method
+func (r *RedisService) Get(ctx context.Context, key string) (string, error) {
+	return r.Client.Get(ctx, key).Result()
+}
+
+// Implement the Set method
+func (r *RedisService) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	return r.Client.Set(ctx, key, value, expiration).Err()
 }
 
 // Utility function to calculate pool utilization as a percentage.

@@ -63,10 +63,9 @@ func setupRouterWithRealDB() *gin.Engine {
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := repository.NewTransactionRepository(dbService.GetDB())
 
-	userService := user.NewUserService(userRepo)
 	transactionService := transaction.NewTransactionService(transactionRepo)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
-
+	userService := user.NewUserService(userRepo, walletService)
 	// Initialize router
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()

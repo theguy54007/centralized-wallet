@@ -10,7 +10,7 @@ import (
 )
 
 // HTTP handler for user registration
-func RegistrationHandler(us *UserService) gin.HandlerFunc {
+func RegistrationHandler(us UserServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request struct {
 			Email    string `json:"email" binding:"required,email"`
@@ -40,7 +40,7 @@ func RegistrationHandler(us *UserService) gin.HandlerFunc {
 }
 
 // LoginHandler handles user login requests
-func LoginHandler(us *UserService) gin.HandlerFunc {
+func LoginHandler(us UserServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request struct {
 			Email    string `json:"email" binding:"required,email"`
