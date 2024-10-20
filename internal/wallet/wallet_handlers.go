@@ -118,10 +118,8 @@ func WithdrawHandler(ws WalletServiceInterface) gin.HandlerFunc {
 	}
 }
 
-// TransferHandler handles transfer requests and returns the updated Wallet struct for the from_user
 func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get user ID from context (set by JWTMiddleware)
 		fromUserID, exists := c.Get("user_id")
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "error", "error": "User ID not found"})
@@ -130,8 +128,8 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 
 		// Parse and validate request payload
 		var request struct {
-			ToUserID int     `json:"to_user_id" binding:"required"`
-			Amount   float64 `json:"amount" binding:"required,gt=0"`
+			ToWalletNumber string  `json:"to_wallet_number" binding:"required"`
+			Amount         float64 `json:"amount" binding:"required,gt=0"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "Invalid request data"})
@@ -139,7 +137,7 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		}
 
 		// Perform the transfer and get the updated Wallet for the from_user
-		wallet, err := ws.Transfer(fromUserID.(int), request.ToUserID, request.Amount)
+		wallet, err := ws.Transfer(fromUserID.(int), request.ToWalletNumber, request.Amount)
 		if err != nil {
 			// Handle specific error cases and return 400 for user-related or validation issues
 			switch err.Error() {
@@ -181,9 +179,22 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 			return
 		}
 
-		userID, ok := userIDInterface.(int)
+		_, ok := userIDInterface.(int)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		// Get the wallet number from the context (set by WalletNumberMiddleware)
+		walletNumberInterface, exists := c.Get("wallet_number")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Wallet number not found"})
+			return
+		}
+
+		walletNumber, ok := walletNumberInterface.(string)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid wallet number"})
 			return
 		}
 
@@ -202,8 +213,8 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 			return
 		}
 
-		// Get the transaction history from the service
-		transactions, err := ts.GetTransactionHistory(userID, orderBy, limit)
+		// Get the transaction history using the wallet number from the service
+		transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

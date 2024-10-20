@@ -13,15 +13,15 @@ func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 	return &TransactionRepository{db: db}
 }
 
-// RecordTransaction records a new transaction in the database
+// CreateTransaction inserts a new transaction with wallet numbers.
 func (r *TransactionRepository) CreateTransaction(transaction *models.Transaction) error {
-	query := `INSERT INTO transactions (from_user_id, to_user_id, transaction_type, amount, created_at)
+	query := `INSERT INTO transactions (from_wallet_number, to_wallet_number, transaction_type, amount, created_at)
 			  VALUES ($1, $2, $3, $4, $5)`
 
 	_, err := r.db.Exec(
 		query,
-		transaction.FromUserID,
-		transaction.ToUserID,
+		transaction.FromWalletNumber,
+		transaction.ToWalletNumber,
 		transaction.Type,
 		transaction.Amount,
 		transaction.CreatedAt,
@@ -29,29 +29,31 @@ func (r *TransactionRepository) CreateTransaction(transaction *models.Transactio
 	return err
 }
 
-// GetTransactionHistory fetches the transaction history for a given user
-func (repo *TransactionRepository) GetTransactionHistory(userID int, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+// GetTransactionHistory fetches the transaction history for a given wallet number.
+func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
 	transactions := []models.TransactionWithEmails{}
 
 	query := `
 		SELECT
 			t.id,
-			t.from_user_id,
-			f.email as from_email,
-			t.to_user_id,
+			uf.email as from_email,
+			t.from_wallet_number,
 			tu.email as to_email,
+			t.to_wallet_number,
 			t.transaction_type,
 			t.amount,
 			t.created_at
 		FROM transactions t
-		LEFT JOIN users f ON t.from_user_id = f.id
-		LEFT JOIN users tu ON t.to_user_id = tu.id
-		WHERE t.from_user_id = $1 OR t.to_user_id = $1
+		LEFT JOIN wallets wf ON t.from_wallet_number = wf.wallet_number
+		LEFT JOIN users uf ON wf.user_id = uf.id
+		LEFT JOIN wallets wtu ON t.to_wallet_number = wtu.wallet_number
+		LEFT JOIN users tu ON wtu.user_id = tu.id
+		WHERE t.from_wallet_number = $1 OR t.to_wallet_number = $1
 		ORDER BY t.created_at ` + orderBy + `
 		LIMIT $2`
 
 	// Execute the query
-	rows, err := repo.db.Query(query, userID, limit)
+	rows, err := repo.db.Query(query, walletNumber, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +66,10 @@ func (repo *TransactionRepository) GetTransactionHistory(userID int, orderBy str
 		// Scan the row into the TransactionWithEmails struct
 		err := rows.Scan(
 			&transaction.ID,
-			&transaction.FromUserID,
 			&transaction.FromEmail,
-			&transaction.ToUserID,
+			&transaction.FromWalletNumber,
 			&transaction.ToEmail,
+			&transaction.ToWalletNumber,
 			&transaction.Type,
 			&transaction.Amount,
 			&transaction.CreatedAt,

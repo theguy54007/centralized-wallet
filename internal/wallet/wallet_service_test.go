@@ -49,7 +49,7 @@ func TestDeposit(t *testing.T) {
 	mockServiceTestHelper.walletRepo.On("Deposit", testUserID, 50.0).Return(mockWallet, nil)
 
 	// Set up the mock for RecordTransaction
-	mockServiceTestHelper.transactionService.On("RecordTransaction", (*int)(nil), &testUserID, "deposit", 50.0).Return(nil)
+	mockServiceTestHelper.transactionService.On("RecordTransaction", (*string)(nil), mock.AnythingOfType("*string"), "deposit", 50.0).Return(nil)
 
 	// Create the wallet service
 	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
@@ -105,7 +105,7 @@ func TestWithdraw(t *testing.T) {
 
 			// Only set up the transaction recording mock if it's expected to be called
 			if tt.mockRecordTransactionCalled {
-				mockServiceTestHelper.transactionService.On("RecordTransaction", &testUserID, (*int)(nil), "withdraw", tt.amount).Return(nil)
+				mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*string"), (*string)(nil), "withdraw", tt.amount).Return(nil)
 			}
 
 			// Create the wallet service using the mocked services
@@ -148,16 +148,17 @@ func TestTransfer(t *testing.T) {
 	}
 
 	// Mock the Transfer method in the wallet repository to return the expected wallets
-	mockServiceTestHelper.walletRepo.On("Transfer", testUserID, testToUserID, 50.0).Return(mockFromWallet, nil)
+	mockServiceTestHelper.walletRepo.On("Transfer", testUserID, testToWalletNumber, 50.0).Return(mockFromWallet, nil)
 
+	mockServiceTestHelper.walletRepo.On("FindByWalletNumber", testToWalletNumber).Return(mockFromWallet, nil)
 	// Mock the transaction recording
-	mockServiceTestHelper.transactionService.On("RecordTransaction", &testUserID, &testToUserID, "transfer", 50.0).Return(nil)
+	mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*string"), mock.AnythingOfType("*string"), "transfer", 50.0).Return(nil)
 
 	// Create the wallet service
 	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
 
 	// Call the Transfer method
-	fromWallet, err := walletService.Transfer(testUserID, testToUserID, 50.0)
+	fromWallet, err := walletService.Transfer(testUserID, testToWalletNumber, 50.0)
 
 	// Check no errors
 	assert.NoError(t, err)

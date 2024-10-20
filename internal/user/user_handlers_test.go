@@ -11,21 +11,19 @@ import (
 
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/repository"
-	"centralized-wallet/tests/mocks/user"
+	mockUser "centralized-wallet/tests/mocks/user"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 // Test registration handler
 func TestRegistrationHandler(t *testing.T) {
-	mockRepo := new(user.MockUserRepository)
-	mockRepo.On("CreateUser", "test@example.com", "password123").Return(&models.User{ID: 1, Email: "test@example.com"}, nil)
+	mockService := new(mockUser.MockUserService)
+	mockService.On("RegisterUser", "test@example.com", "password123").Return(&models.User{ID: 1, Email: "test@example.com"}, nil)
 
-	userService := NewUserService(mockRepo)
 	router := gin.Default()
-	router.POST("/register", RegistrationHandler(userService))
+	router.POST("/register", RegistrationHandler(mockService))
 
 	body := map[string]interface{}{"email": "test@example.com", "password": "password123"}
 	bodyJSON, _ := json.Marshal(body)
@@ -42,12 +40,11 @@ func TestRegistrationHandler(t *testing.T) {
 
 // Test registration handler with duplicate email
 func TestRegistrationHandler_DuplicateEmail(t *testing.T) {
-	mockRepo := new(user.MockUserRepository)
-	mockRepo.On("CreateUser", "test@example.com", "password123").Return(nil, errors.New("email already in use"))
+	mockService := new(mockUser.MockUserService)
+	mockService.On("RegisterUser", "test@example.com", "password123").Return(nil, errors.New("email already in use"))
 
-	userService := NewUserService(mockRepo)
 	router := gin.Default()
-	router.POST("/register", RegistrationHandler(userService))
+	router.POST("/register", RegistrationHandler(mockService))
 
 	body := map[string]interface{}{"email": "test@example.com", "password": "password123"}
 	bodyJSON, _ := json.Marshal(body)
@@ -67,22 +64,21 @@ func TestLoginHandler(t *testing.T) {
 	// Set JWT_SECRET environment variable for testing
 	os.Setenv("JWT_SECRET", "test-secret-key")
 
-	mockRepo := new(user.MockUserRepository)
+	mockService := new(mockUser.MockUserService)
 
 	// Generate the hash for "password123" directly in the test
 	hashedPassword, _ := repository.HashPassword("password123")
 
-	// Mock GetUserByEmail to return a valid user
+	// Mock LoginUser to return a valid user
 	user := &models.User{
 		ID:       1,
 		Email:    "test@example.com",
 		Password: hashedPassword,
 	}
-	mockRepo.On("GetUserByEmail", "test@example.com").Return(user, nil)
+	mockService.On("LoginUser", "test@example.com", "password123").Return(user, nil)
 
-	userService := NewUserService(mockRepo)
 	router := gin.Default()
-	router.POST("/login", LoginHandler(userService))
+	router.POST("/login", LoginHandler(mockService))
 
 	body := map[string]interface{}{"email": "test@example.com", "password": "password123"}
 	bodyJSON, _ := json.Marshal(body)
@@ -106,13 +102,11 @@ func TestLoginHandler(t *testing.T) {
 
 // Test login handler with incorrect password
 func TestLoginHandler_IncorrectPassword(t *testing.T) {
-	mockRepo := new(user.MockUserRepository)
-	mockRepo.On("GetUserByEmail", "test@example.com").Return(&models.User{ID: 1, Email: "test@example.com", Password: "$2a$10$7eqZbIx8VpHhF.B4Gz3POOt.3GpG8k5.3RhqMf.jI6BrLJhHGOba2"}, nil)
-	mockRepo.On("VerifyPassword", mock.Anything, "wrongpassword").Return(errors.New("invalid password"))
+	mockService := new(mockUser.MockUserService)
+	mockService.On("LoginUser", "test@example.com", "wrongpassword").Return(nil, errors.New("invalid password"))
 
-	userService := NewUserService(mockRepo)
 	router := gin.Default()
-	router.POST("/login", LoginHandler(userService))
+	router.POST("/login", LoginHandler(mockService))
 
 	body := map[string]interface{}{"email": "test@example.com", "password": "wrongpassword"}
 	bodyJSON, _ := json.Marshal(body)

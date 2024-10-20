@@ -4,12 +4,15 @@ import (
 	"centralized-wallet/internal/models"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserRepositoryInterface interface {
-	CreateUser(email, password string) (*models.User, error)
+	IsEmailInUse(email string) (bool, error)
+	BeginTransaction() (*sql.Tx, error)
+	CreateUserWithTx(tx *sql.Tx, email, password string) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
 }
 
@@ -25,19 +28,25 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// CreateUser creates a new user with a hashed password
-func (repo *UserRepository) CreateUser(email, password string) (*models.User, error) {
-	// Check if email is already in use
+func (repo *UserRepository) BeginTransaction() (*sql.Tx, error) {
+	tx, err := repo.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	return tx, nil
+}
+
+func (repo *UserRepository) IsEmailInUse(email string) (bool, error) {
 	var exists bool
 	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)"
 	err := repo.db.QueryRow(query, email).Scan(&exists)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	if exists {
-		return nil, errors.New("email already in use")
-	}
+	return exists, nil
+}
 
+func (repo *UserRepository) CreateUserWithTx(tx *sql.Tx, email, password string) (*models.User, error) {
 	// Hash the password
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
@@ -45,18 +54,14 @@ func (repo *UserRepository) CreateUser(email, password string) (*models.User, er
 	}
 
 	// Insert the new user into the database
-	query = "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id"
-	var userID int
-	err = repo.db.QueryRow(query, email, hashedPassword).Scan(&userID)
+	query := `INSERT INTO users (email, password, created_at, updated_at)
+			  VALUES ($1, $2, NOW(), NOW()) RETURNING id, email, created_at, updated_at`
+	user := &models.User{}
+	err = tx.QueryRow(query, email, hashedPassword).Scan(&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
-
-	return &models.User{
-		ID:       userID,
-		Email:    email,
-		Password: hashedPassword,
-	}, nil
+	return user, nil
 }
 
 // GetUserByEmail retrieves a user by their email from the database
