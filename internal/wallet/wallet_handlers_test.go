@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"centralized-wallet/internal/apperrors"
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/models"
 	mockAuth "centralized-wallet/tests/mocks/auth"
@@ -52,6 +53,7 @@ func setupRouter() *gin.Engine {
 		walletRoutes.POST("/deposit", DepositHandler(mockHandlerTestHelper.walletService))
 		walletRoutes.POST("/withdraw", WithdrawHandler(mockHandlerTestHelper.walletService))
 		walletRoutes.POST("/transfer", TransferHandler(mockHandlerTestHelper.walletService))
+		walletRoutes.POST("/create", CreateWalletHandler(mockHandlerTestHelper.walletService))
 		walletRoutes.GET("/transactions",
 			WalletNumberMiddleware(mockHandlerTestHelper.walletService, mockHandlerTestHelper.redisClient),
 			TransactionHistoryHandler(mockHandlerTestHelper.transactionSerivce),
@@ -316,4 +318,71 @@ func TestTransactionHistoryHandler(t *testing.T) {
 	}`, testToWalletNumber, testEmail, now.Format(time.RFC3339Nano), testFromWalletNumber, testEmail, now.Format(time.RFC3339Nano))
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedResponse, w.Body.String())
+}
+
+// test create wallet
+func TestCreateWalletHandler(t *testing.T) {
+	// Define test cases in a table
+	tests := []struct {
+		name                 string
+		mockReturnWallet     *models.Wallet
+		mockReturnError      error
+		expectedStatusCode   int
+		expectedResponseBody string
+		requestBody          interface{} // Add a field for request body (to customize)
+	}{
+		{
+			name: "successful wallet creation",
+			mockReturnWallet: &models.Wallet{
+				WalletNumber: testWalletNumber,
+				UserID:       testUserID,
+				Balance:      0.0,
+				UpdatedAt:    time.Now(),
+			},
+			mockReturnError:      nil,
+			expectedStatusCode:   http.StatusOK,
+			expectedResponseBody: fmt.Sprintf(`{"wallet_number": "%s"}`, testWalletNumber),
+			requestBody:          nil, // No request body needed
+		},
+		{
+			name:                 "user already has a wallet",
+			mockReturnWallet:     nil,
+			mockReturnError:      apperrors.ErrWalletAlreadyExists,
+			expectedStatusCode:   http.StatusConflict,
+			expectedResponseBody: `{"error": "User already has a wallet"}`,
+			requestBody:          nil, // No request body needed
+		},
+		{
+			name:                 "unknown internal error",
+			mockReturnWallet:     nil,
+			mockReturnError:      fmt.Errorf("some random error"),
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: `{"error": "some random error"}`,
+			requestBody:          nil, // No request body needed
+		},
+	}
+
+	// Iterate over the test cases
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupRouter()
+			// Mock the wallet service behavior based on the test case
+			mockHandlerTestHelper.walletService.On("CreateWallet", testUserID).Return(tt.mockReturnWallet, tt.mockReturnError)
+
+			// Generate JWT token for test
+			token := generateJWTForTest(testUserID)
+
+			// Execute the request with the provided request body
+			w := testutils.ExecuteRequest(router, "POST", "/wallets/create", nil, token)
+
+			// Assert that the response code matches the expected status code
+			assert.Equal(t, tt.expectedStatusCode, w.Code)
+
+			// Assert that the response body matches the expected response
+			assert.JSONEq(t, tt.expectedResponseBody, w.Body.String())
+
+			// Ensure the expectations of the mock are met
+			mockHandlerTestHelper.walletService.AssertExpectations(t)
+		})
+	}
 }

@@ -54,6 +54,7 @@ func (s *Server) registerWalletRoutes(r *gin.Engine, walletService *wallet.Walle
 	walletRoutes.POST("/deposit", wallet.DepositHandler(walletService))   // Deposit money
 	walletRoutes.POST("/withdraw", wallet.WithdrawHandler(walletService)) // Withdraw money
 	walletRoutes.POST("/transfer", wallet.TransferHandler(walletService))
+	walletRoutes.POST("/create", wallet.CreateWalletHandler(walletService))
 
 	walletRoutes.Use(wallet.WalletNumberMiddleware(s.walletService, &s.rd))
 

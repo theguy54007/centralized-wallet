@@ -10,11 +10,15 @@ import (
 )
 
 func ExecuteRequest(router *gin.Engine, method, url string, body interface{}, token string) *httptest.ResponseRecorder {
-	var reqBody []byte
+	var req *http.Request
 	if body != nil {
-		reqBody, _ = json.Marshal(body)
+		reqBody, _ := json.Marshal(body)
+		req, _ = http.NewRequest(method, url, bytes.NewBuffer(reqBody))
+	} else {
+		// Pass nil body if no request body is needed
+		req, _ = http.NewRequest(method, url, nil)
 	}
-	req, _ := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
+
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
