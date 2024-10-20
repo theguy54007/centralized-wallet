@@ -2,7 +2,7 @@ package wallet
 
 import (
 	"centralized-wallet/internal/models"
-	"centralized-wallet/tests/mocks/transaction"
+	mockTransaction "centralized-wallet/tests/mocks/transaction"
 	mockWallet "centralized-wallet/tests/mocks/wallet"
 	"errors"
 	"testing"
@@ -14,12 +14,12 @@ import (
 
 var mockServiceTestHelper struct {
 	walletRepo         *mockWallet.MockWalletRepository
-	transactionService *transaction.MockTransactionService
+	transactionService *mockTransaction.MockTransactionService
 }
 
 func setupServiceMock() {
 	mockServiceTestHelper.walletRepo = new(mockWallet.MockWalletRepository)
-	mockServiceTestHelper.transactionService = new(transaction.MockTransactionService)
+	mockServiceTestHelper.transactionService = new(mockTransaction.MockTransactionService)
 }
 
 // Test GetBalance

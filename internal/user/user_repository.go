@@ -1,18 +1,16 @@
-package repository
+package user
 
 import (
 	"centralized-wallet/internal/models"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserRepositoryInterface interface {
 	IsEmailInUse(email string) (bool, error)
-	BeginTransaction() (*sql.Tx, error)
-	CreateUserWithTx(tx *sql.Tx, email, password string) (*models.User, error)
+	CreateUser(email, password string) (*models.User, error) // No transaction needed
 	GetUserByEmail(email string) (*models.User, error)
 }
 
@@ -28,14 +26,6 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (repo *UserRepository) BeginTransaction() (*sql.Tx, error) {
-	tx, err := repo.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	return tx, nil
-}
-
 func (repo *UserRepository) IsEmailInUse(email string) (bool, error) {
 	var exists bool
 	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)"
@@ -46,7 +36,7 @@ func (repo *UserRepository) IsEmailInUse(email string) (bool, error) {
 	return exists, nil
 }
 
-func (repo *UserRepository) CreateUserWithTx(tx *sql.Tx, email, password string) (*models.User, error) {
+func (repo *UserRepository) CreateUser(email, password string) (*models.User, error) {
 	// Hash the password
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
@@ -57,7 +47,7 @@ func (repo *UserRepository) CreateUserWithTx(tx *sql.Tx, email, password string)
 	query := `INSERT INTO users (email, password, created_at, updated_at)
 			  VALUES ($1, $2, NOW(), NOW()) RETURNING id, email, created_at, updated_at`
 	user := &models.User{}
-	err = tx.QueryRow(query, email, hashedPassword).Scan(&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	err = repo.db.QueryRow(query, email, hashedPassword).Scan(&user.ID, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -83,9 +73,4 @@ func (repo *UserRepository) GetUserByEmail(email string) (*models.User, error) {
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
-}
-
-// VerifyPassword compares the hashed password with the plain text password
-func VerifyPassword(hashedPassword, password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }

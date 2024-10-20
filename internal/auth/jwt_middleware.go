@@ -2,6 +2,7 @@ package auth
 
 import (
 	// "centralized-wallet/internal/auth"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -42,17 +43,17 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		// Validate the JWT token
 		token, err := ValidateJWT(tokenString)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token expired"})
+			} else {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			}
 			c.Abort()
 			return
 		}
 
-		// Manually check claims for expiration
-		if err := CheckTokenClaims(token); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token expired"})
-			c.Abort()
-			return
-		}
+		c.Set("token", token)
+		c.Set("token_string", tokenString)
 
 		// Add the user ID to the context
 		claims, ok := token.Claims.(jwt.MapClaims)

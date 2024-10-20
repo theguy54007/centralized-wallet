@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/models"
@@ -76,30 +77,22 @@ func LoginHandler(us UserServiceInterface) gin.HandlerFunc {
 
 func LogoutHandler(blacklistService *auth.BlacklistService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get the token from the Authorization header
-		tokenString := c.GetHeader("Authorization")
-		if tokenString == "" {
+
+		tokenString, exists := c.Get("token_string")
+		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token is required"})
 			return
 		}
 
-		// Ensure the token has "Bearer" prefix and remove it
-		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
-			tokenString = tokenString[7:]
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
-			return
-		}
-
-		// Validate the JWT token (no need to check claims, just validate structure)
-		token, err := auth.ValidateJWT(tokenString)
-		if err != nil || !token.Valid {
+		// Validate the token presence and ensure it's valid
+		token, exists := c.Get("token")
+		if !exists || token == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
 
 		// Add the token to the blacklist
-		err = blacklistService.BlacklistToken(tokenString, token)
+		err := blacklistService.BlacklistToken(tokenString.(string), token.(*jwt.Token))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to blacklist token"})
 			return

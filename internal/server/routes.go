@@ -40,6 +40,8 @@ func (s *Server) redisHealthHandler(c *gin.Context) {
 func (s *Server) registerUserRoutes(r *gin.Engine, userService *user.UserService) {
 	r.POST("/register", user.RegistrationHandler(userService))
 	r.POST("/login", user.LoginHandler(userService))
+
+	r.Use(auth.JWTMiddleware(s.blackListService)) // Apply JWT middleware to all user routes
 	r.POST("/logout", user.LogoutHandler(s.blackListService))
 }
 

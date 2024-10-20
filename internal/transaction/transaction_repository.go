@@ -1,13 +1,20 @@
-package repository
+package transaction
 
 import (
 	"centralized-wallet/internal/models"
 	"database/sql"
 )
 
+type TransactionRepositoryInterface interface {
+	CreateTransaction(transaction *models.Transaction) error
+	GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error)
+}
 type TransactionRepository struct {
 	db *sql.DB
 }
+
+// Ensure WalletRepository implements WalletRepositoryInterface
+var _ TransactionRepositoryInterface = &TransactionRepository{}
 
 func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 	return &TransactionRepository{db: db}

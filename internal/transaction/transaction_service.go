@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"centralized-wallet/internal/models"
-	"centralized-wallet/internal/repository"
 	"fmt"
 	"time"
 )
@@ -13,10 +12,10 @@ type TransactionServiceInterface interface {
 }
 
 type TransactionService struct {
-	repo *repository.TransactionRepository
+	repo TransactionRepositoryInterface
 }
 
-func NewTransactionService(repo *repository.TransactionRepository) *TransactionService {
+func NewTransactionService(repo TransactionRepositoryInterface) *TransactionService {
 	return &TransactionService{repo: repo}
 }
 

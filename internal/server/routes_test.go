@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/database"
-	"centralized-wallet/internal/repository"
 	"centralized-wallet/internal/transaction"
 	"centralized-wallet/internal/user"
 	"centralized-wallet/internal/wallet"
@@ -59,13 +58,13 @@ func generateJWTForTest(userId int) string {
 // Setup the router with real repositories and services using the test container DB
 func setupRouterWithRealDB() *gin.Engine {
 	// Initialize repositories and services
-	userRepo := repository.NewUserRepository(dbService.GetDB())
+	userRepo := user.NewUserRepository(dbService.GetDB())
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
-	transactionRepo := repository.NewTransactionRepository(dbService.GetDB())
+	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
 
 	transactionService := transaction.NewTransactionService(transactionRepo)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
-	userService := user.NewUserService(userRepo, walletService)
+	userService := user.NewUserService(userRepo)
 	// Initialize router
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
