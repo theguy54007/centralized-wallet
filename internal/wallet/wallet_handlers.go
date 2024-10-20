@@ -202,6 +202,8 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 		}
 
 		// Parse query parameters for sorting and limiting
+
+		// Parse query parameters for sorting and limiting
 		orderBy := c.DefaultQuery("order", "desc")
 		if orderBy != "asc" && orderBy != "desc" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order, must be 'asc' or 'desc'"})
@@ -216,8 +218,16 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 			return
 		}
 
+		offsetStr := c.DefaultQuery("offset", "0")
+		var offset int
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || limit <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset, must be between 1 and 100"})
+			return
+		}
+
 		// Get the transaction history using the wallet number from the service
-		transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit)
+		transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

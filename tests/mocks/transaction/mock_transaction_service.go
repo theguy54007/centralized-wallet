@@ -17,7 +17,7 @@ func (m *MockTransactionService) RecordTransaction(fromWalletNumber, toWalletNum
 }
 
 // GetTransactionHistory mocks the GetTransactionHistory function
-func (m *MockTransactionService) GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+func (m *MockTransactionService) GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error) {
 	args := m.Called(walletNumber, orderBy, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

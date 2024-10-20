@@ -17,7 +17,7 @@ func (m *MockTransactionRepository) CreateTransaction(transaction *models.Transa
 }
 
 // Mock GetTransactionHistory method
-func (m *MockTransactionRepository) GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+func (m *MockTransactionRepository) GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error) {
 	args := m.Called(walletNumber, orderBy, limit)
 	return args.Get(0).([]models.TransactionWithEmails), args.Error(1)
 }

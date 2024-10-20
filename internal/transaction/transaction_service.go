@@ -8,7 +8,7 @@ import (
 
 type TransactionServiceInterface interface {
 	RecordTransaction(fromWalletNumber, toWalletNumber *string, transactionType string, amount float64) error
-	GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error)
+	GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error)
 }
 
 type TransactionService struct {
@@ -40,6 +40,6 @@ func (ts *TransactionService) RecordTransaction(fromWalletNumber, toWalletNumber
 }
 
 // GetTransactionHistory retrieves the transaction history for a specific wallet number.
-func (ts *TransactionService) GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
-	return ts.repo.GetTransactionHistory(walletNumber, orderBy, limit)
+func (ts *TransactionService) GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error) {
+	return ts.repo.GetTransactionHistory(walletNumber, orderBy, limit, offset)
 }

@@ -114,7 +114,7 @@ func TestGetTransactionHistory(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Retrieve transaction history for the first wallet
-	transactions, err := transactionRepo.GetTransactionHistory(fromWalletNumber, "DESC", 1)
+	transactions, err := transactionRepo.GetTransactionHistory(fromWalletNumber, "DESC", 1, 0)
 	assert.NoError(t, err)
 	assert.Len(t, transactions, 1)
 

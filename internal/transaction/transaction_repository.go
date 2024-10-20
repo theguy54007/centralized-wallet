@@ -7,7 +7,7 @@ import (
 
 type TransactionRepositoryInterface interface {
 	CreateTransaction(transaction *models.Transaction) error
-	GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error)
+	GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error)
 }
 type TransactionRepository struct {
 	db *sql.DB
@@ -37,7 +37,7 @@ func (r *TransactionRepository) CreateTransaction(transaction *models.Transactio
 }
 
 // GetTransactionHistory fetches the transaction history for a given wallet number.
-func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, orderBy string, limit int) ([]models.TransactionWithEmails, error) {
+func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error) {
 	transactions := []models.TransactionWithEmails{}
 
 	query := `
@@ -57,10 +57,11 @@ func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, or
 		LEFT JOIN users tu ON wtu.user_id = tu.id
 		WHERE t.from_wallet_number = $1 OR t.to_wallet_number = $1
 		ORDER BY t.created_at ` + orderBy + `
-		LIMIT $2`
+		LIMIT $2
+		OFFSET $3`
 
 	// Execute the query
-	rows, err := repo.db.Query(query, walletNumber, limit)
+	rows, err := repo.db.Query(query, walletNumber, limit, offset)
 	if err != nil {
 		return nil, err
 	}
