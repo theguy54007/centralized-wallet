@@ -34,7 +34,15 @@ func (repo *TransactionRepository) GetTransactionHistory(userID int, orderBy str
 	transactions := []models.TransactionWithEmails{}
 
 	query := `
-		SELECT t.id, t.from_user_id, f.email as from_email, t.to_user_id, tu.email as to_email, t.transaction_type, t.amount, t.created_at
+		SELECT
+			t.id,
+			t.from_user_id,
+			f.email as from_email,
+			t.to_user_id,
+			tu.email as to_email,
+			t.transaction_type,
+			t.amount,
+			t.created_at
 		FROM transactions t
 		LEFT JOIN users f ON t.from_user_id = f.id
 		LEFT JOIN users tu ON t.to_user_id = tu.id

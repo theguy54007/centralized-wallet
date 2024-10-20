@@ -91,32 +91,78 @@ func TestBalanceHandler(t *testing.T) {
 func TestDepositHandler(t *testing.T) {
 	router := setupRouter()
 
-	mockHandlerTestHelper.walletService.On("Deposit", testUserID, testAmount).Return(nil)
+	// Define the mock wallet with the expected balance and updated_at time
+	mockWallet := &models.Wallet{
+		UserID:    testUserID,
+		Balance:   testAmount + 100.0, // Assume current balance is 100.0
+		UpdatedAt: time.Now(),
+	}
+
+	// Mock the Deposit method to return the mock wallet
+	mockHandlerTestHelper.walletService.On("Deposit", testUserID, testAmount).Return(mockWallet, nil)
 	mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", (*int)(nil), &testUserID, "deposit", testAmount).Return(nil)
 
+	// Prepare the request body
 	body := map[string]interface{}{"amount": testAmount}
 	token := generateJWTForTest(testUserID)
 
+	// Execute the request
 	w := executeRequest(router, "POST", "/wallets/deposit", body, token)
 
+	// Assert that the response code is OK
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"message":"Deposit successful"}`, w.Body.String())
+
+	// Format the expected response with the mock wallet data
+	expectedResponse := fmt.Sprintf(`{
+		"status": "success",
+		"data": {
+			"message": "Deposit successful",
+			"balance": %.2f,
+			"updated_at": "%s"
+		}
+	}`, mockWallet.Balance, mockWallet.UpdatedAt.Format(time.RFC3339Nano))
+
+	// Assert that the response matches the expected result
+	assert.JSONEq(t, expectedResponse, w.Body.String())
 }
 
 // Withdraw Handler Test
 func TestWithdrawHandler(t *testing.T) {
 	router := setupRouter()
 
-	mockHandlerTestHelper.walletService.On("Withdraw", testUserID, testAmount).Return(nil)
+	// Define the mock wallet with the expected balance and updated_at time
+	mockWallet := &models.Wallet{
+		UserID:    testUserID,
+		Balance:   50.0, // Assume current balance is 50.0 after withdrawal
+		UpdatedAt: time.Now(),
+	}
+
+	// Mock the Withdraw method to return the mock wallet
+	mockHandlerTestHelper.walletService.On("Withdraw", testUserID, testAmount).Return(mockWallet, nil)
 	mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", &testUserID, (*int)(nil), "withdraw", testAmount).Return(nil)
 
+	// Prepare the request body
 	body := map[string]interface{}{"amount": testAmount}
 	token := generateJWTForTest(testUserID)
 
+	// Execute the request
 	w := executeRequest(router, "POST", "/wallets/withdraw", body, token)
 
+	// Assert that the response code is OK
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"message":"Withdrawal successful"}`, w.Body.String())
+
+	// Format the expected response with the mock wallet data
+	expectedResponse := fmt.Sprintf(`{
+		"status": "success",
+		"data": {
+			"message": "Withdrawal successful",
+			"balance": %.2f,
+			"updated_at": "%s"
+		}
+	}`, mockWallet.Balance, mockWallet.UpdatedAt.Format(time.RFC3339Nano))
+
+	// Assert that the response matches the expected result
+	assert.JSONEq(t, expectedResponse, w.Body.String())
 }
 
 // Transfer Handler Tests
@@ -137,11 +183,12 @@ func TestTransferHandler(t *testing.T) {
 			toUserId:   testToUserID,
 			amount:     50.0,
 			mockSetup: func() {
-				mockHandlerTestHelper.walletService.On("UserExists", testUserID).Return(true, nil)    // from_user_id exists
-				mockHandlerTestHelper.walletService.On("UserExists", testToUserID).Return(false, nil) // to_user_id does not exist
+				// Mock Transfer with user existence failure, returning the correct typed nil
+				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToUserID, 50.0).
+					Return((*models.Wallet)(nil), fmt.Errorf("to_user_id does not exist"))
 			},
 			expectedStatus:   http.StatusBadRequest,
-			expectedResponse: `{"error":"to_user_id does not exist"}`,
+			expectedResponse: `{"status":"error","error":"to_user_id does not exist"}`,
 		},
 		{
 			name:       "FromUserNotExist",
@@ -149,11 +196,12 @@ func TestTransferHandler(t *testing.T) {
 			toUserId:   testToUserID,
 			amount:     50.0,
 			mockSetup: func() {
-				mockHandlerTestHelper.walletService.On("UserExists", testUserID).Return(false, nil)  // from_user_id does not exist
-				mockHandlerTestHelper.walletService.On("UserExists", testToUserID).Return(true, nil) // to_user_id exists
+				// Mock Transfer with user existence failure, returning the correct typed nil
+				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToUserID, 50.0).
+					Return((*models.Wallet)(nil), fmt.Errorf("from_user_id does not exist"))
 			},
 			expectedStatus:   http.StatusBadRequest,
-			expectedResponse: `{"error":"from_user_id does not exist"}`,
+			expectedResponse: `{"status":"error","error":"from_user_id does not exist"}`,
 		},
 		{
 			name:       "Success",
@@ -161,13 +209,26 @@ func TestTransferHandler(t *testing.T) {
 			toUserId:   testToUserID,
 			amount:     50.0,
 			mockSetup: func() {
-				mockHandlerTestHelper.walletService.On("UserExists", testUserID).Return(true, nil)   // from_user_id exists
-				mockHandlerTestHelper.walletService.On("UserExists", testToUserID).Return(true, nil) // to_user_id exists
-				mockHandlerTestHelper.walletService.On("Transfer", testUserID, 2, 50.0).Return(nil)  // Transfer
+				// Mock successful transfer, returning a valid wallet
+				mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToUserID, 50.0).
+					Return(&models.Wallet{
+						UserID:    testUserID,
+						Balance:   100.0,
+						UpdatedAt: now,
+					}, nil)
+
+				// Mock recording the transaction
 				mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", &testUserID, &testToUserID, "transfer", 50.0).Return(nil)
 			},
-			expectedStatus:   http.StatusOK,
-			expectedResponse: `{"message":"Transfer successful"}`,
+			expectedStatus: http.StatusOK,
+			expectedResponse: fmt.Sprintf(`{
+				"status": "success",
+				"data": {
+					"message": "Transfer successful",
+					"balance": 100.0,
+					"updated_at": "%s"
+				}
+			}`, now.Format(time.RFC3339Nano)),
 		},
 	}
 
