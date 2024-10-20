@@ -5,6 +5,15 @@ import (
 	"centralized-wallet/internal/transaction"
 )
 
+// WalletServiceInterface defines the methods for the WalletService
+type WalletServiceInterface interface {
+	GetBalance(userID int) (float64, error)
+	UserExists(userID int) (bool, error)
+	Deposit(userID int, amount float64) error
+	Withdraw(userID int, amount float64) error
+	Transfer(fromUserID, toUserID int, amount float64) error
+}
+
 // WalletService handles wallet operations using the repository interface
 type WalletService struct {
 	walletRepo         repository.WalletRepositoryInterface

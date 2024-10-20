@@ -1,4 +1,4 @@
-package wallet
+package mock_wallet
 
 import (
 	"github.com/stretchr/testify/mock"

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/database"
 	"centralized-wallet/internal/repository"
 	"centralized-wallet/internal/transaction"
@@ -51,7 +52,7 @@ func TestMain(m *testing.M) {
 
 // Mock JWT generation for tests
 func generateJWTForTest(userId int) string {
-	token, _ := user.GenerateJWT(userId)
+	token, _ := auth.GenerateJWT(userId)
 	return token
 }
 
