@@ -13,4 +13,5 @@ var (
 	testAmount           = 50.0
 	testEmail            = "user1@example.com"
 	now                  = time.Now()
+	testWalletNumber     = "1234567890"
 )

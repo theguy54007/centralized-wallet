@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"centralized-wallet/internal/apperrors"
 	"centralized-wallet/internal/models"
 	mockTransaction "centralized-wallet/tests/mocks/transaction"
 	mockWallet "centralized-wallet/tests/mocks/wallet"
@@ -170,4 +171,76 @@ func TestTransfer(t *testing.T) {
 	// Verify that expectations are met
 	mockServiceTestHelper.walletRepo.AssertExpectations(t)
 	mockServiceTestHelper.transactionService.AssertExpectations(t)
+}
+
+func TestCreateWallet(t *testing.T) {
+
+	// Define test cases in a table-driven format
+	tests := []struct {
+		name                 string
+		userExists           bool
+		userExistsError      error
+		repoError            error
+		expectedError        error
+		expectedWalletNumber string
+	}{
+		{
+			name:                 "successful wallet creation",
+			userExists:           false,
+			userExistsError:      nil,
+			repoError:            nil,
+			expectedError:        nil,
+			expectedWalletNumber: "WAL-12345-20211020000000-ABC123",
+		},
+		{
+			name:            "user already has a wallet",
+			userExists:      true,
+			userExistsError: nil,
+			repoError:       nil,
+			expectedError:   apperrors.ErrWalletAlreadyExists,
+		},
+		{
+			name:            "error checking if user exists",
+			userExists:      false,
+			userExistsError: errors.New("user service failure"),
+			repoError:       nil,
+			expectedError:   errors.New("failed to check if user exists: user service failure"),
+		},
+		{
+			name:            "error creating wallet",
+			userExists:      false,
+			userExistsError: nil,
+			repoError:       errors.New("database error"),
+			expectedError:   errors.New("database error"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupServiceMock()
+			// Mock UserExists behavior based on the test case
+			mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(tt.userExists, tt.userExistsError)
+
+			// Only mock the CreateWallet method if user doesn't already exist
+			if !tt.userExists && tt.userExistsError == nil {
+				// Mock the CreateWallet method
+				mockServiceTestHelper.walletRepo.On("CreateWallet", mock.Anything).Return(tt.repoError)
+			}
+			walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
+			// Call CreateWallet
+			wallet, err := walletService.CreateWallet(12345)
+
+			// Assert based on the expected error and wallet number
+			if tt.expectedError != nil {
+				assert.EqualError(t, err, tt.expectedError.Error())
+				assert.Nil(t, wallet)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, wallet)
+			}
+
+			// Assert that the mock expectations were met
+			mockServiceTestHelper.walletRepo.AssertExpectations(t)
+		})
+	}
 }

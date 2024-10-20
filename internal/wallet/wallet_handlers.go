@@ -1,7 +1,10 @@
 package wallet
 
 import (
+	"centralized-wallet/internal/apperrors"
 	"centralized-wallet/internal/transaction"
+	"errors"
+
 	"net/http"
 	"strconv"
 
@@ -222,5 +225,31 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 
 		// Return the transactions as JSON
 		c.JSON(http.StatusOK, gin.H{"transactions": transactions})
+	}
+}
+
+func CreateWalletHandler(ws WalletServiceInterface) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get user ID from the context (set by JWTMiddleware)
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+			return
+		}
+
+		wallet, err := ws.CreateWallet(userID.(int))
+		if err != nil {
+			if errors.Is(err, apperrors.ErrWalletAlreadyExists) {
+				// If the user already has a wallet, return a 409 Conflict status
+				c.JSON(http.StatusConflict, gin.H{"error": "User already has a wallet"})
+			} else {
+				// For any other error, return a 500 Internal Server Error
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
+			return
+		}
+
+		// Return structured success response with balance and updated_at timestamp
+		c.JSON(http.StatusOK, gin.H{"wallet_number": wallet.WalletNumber})
 	}
 }

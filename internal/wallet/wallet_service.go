@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"centralized-wallet/internal/apperrors"
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/transaction"
 	"fmt"
@@ -36,6 +37,16 @@ func NewWalletService(walletRepo WalletRepositoryInterface, transactionService t
 }
 
 func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
+	// check the user is already exists
+	userExists, err := ws.UserExists(userID)
+	if err != nil {
+		// Log the error if necessary and return it
+		return nil, fmt.Errorf("failed to check if user exists: %w", err) // Wrap the error for better context
+	}
+	// if user already exists, return error
+	if userExists {
+		return nil, apperrors.ErrWalletAlreadyExists
+	}
 
 	walletNumber := ws.GenerateUniqueWalletNumber(userID)
 	wallet := &models.Wallet{
@@ -47,7 +58,7 @@ func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
 	}
 
 	// Call repository to insert wallet in the database using the transaction
-	err := ws.walletRepo.CreateWallet(wallet)
+	err = ws.walletRepo.CreateWallet(wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +138,9 @@ func (ws *WalletService) GenerateUniqueWalletNumber(userID int) string {
 	// Get the current timestamp in the format YYYYMMDDHHMMSS
 	timestamp := time.Now().Format("20060102150405")
 
+	if len(timestamp) > 3 {
+		timestamp = timestamp[3:] // Remove the first three digits
+	}
 	// Generate a small random string
 	randomString := generateRandomString(6) // Example: ABC123
 
@@ -139,10 +153,10 @@ func (ws *WalletService) GenerateUniqueWalletNumber(userID int) string {
 // generateRandomString generates a random string of length n.
 func generateRandomString(n int) string {
 	const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	rand.Seed(time.Now().UnixNano())
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano())) // Create a new random source
 	result := make([]byte, n)
 	for i := range result {
-		result[i] = letters[rand.Intn(len(letters))]
+		result[i] = letters[seededRand.Intn(len(letters))] // Use the new seeded random instance
 	}
 	return string(result)
 }
