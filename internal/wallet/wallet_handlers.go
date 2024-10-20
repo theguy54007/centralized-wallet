@@ -9,7 +9,7 @@ import (
 )
 
 // BalanceHandler returns the wallet balance of the authenticated user
-func BalanceHandler(ws *WalletService) gin.HandlerFunc {
+func BalanceHandler(ws WalletServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get user ID from context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
@@ -30,7 +30,7 @@ func BalanceHandler(ws *WalletService) gin.HandlerFunc {
 }
 
 // DepositHandler allows the user to deposit money into their wallet
-func DepositHandler(ws *WalletService) gin.HandlerFunc {
+func DepositHandler(ws WalletServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
@@ -59,7 +59,7 @@ func DepositHandler(ws *WalletService) gin.HandlerFunc {
 }
 
 // WithdrawHandler allows the authenticated user to withdraw money from their wallet
-func WithdrawHandler(ws *WalletService) gin.HandlerFunc {
+func WithdrawHandler(ws WalletServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
@@ -87,7 +87,7 @@ func WithdrawHandler(ws *WalletService) gin.HandlerFunc {
 	}
 }
 
-func TransferHandler(ws *WalletService) gin.HandlerFunc {
+func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get user ID from context (set by JWTMiddleware)
 		fromUserID, exists := c.Get("user_id")

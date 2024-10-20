@@ -2,7 +2,7 @@ package wallet
 
 import (
 	"centralized-wallet/tests/mocks/transaction"
-	"centralized-wallet/tests/mocks/wallet"
+	mockWallet "centralized-wallet/tests/mocks/wallet"
 	"errors"
 	"testing"
 
@@ -10,34 +10,37 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+var mockServiceTestHelper struct {
+	walletRepo         *mockWallet.MockWalletRepository
+	transactionService *transaction.MockTransactionService
+}
+
+func setupServiceMock() {
+	mockServiceTestHelper.walletRepo = new(mockWallet.MockWalletRepository)
+	mockServiceTestHelper.transactionService = new(transaction.MockTransactionService)
+}
+
 // Test GetBalance
 func TestGetBalance(t *testing.T) {
-	mockRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
-	mockRepo.On("GetWalletBalance", 1).Return(100.0, nil)
+	setupServiceMock()
+	mockServiceTestHelper.walletRepo.On("GetWalletBalance", 1).Return(100.0, nil)
 
-	walletService := NewWalletService(mockRepo, mockTransactionService)
+	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
 	balance, err := walletService.GetBalance(1)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 100.0, balance)
-	mockRepo.AssertExpectations(t)
+	mockServiceTestHelper.walletRepo.AssertExpectations(t)
 }
 
 // Test Deposit
 func TestDeposit(t *testing.T) {
-	mockRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
-
-	userID := 1
-	// Mock the Deposit method on the repository
-	mockRepo.On("Deposit", userID, 50.0).Return(nil)
-
-	// Mock the RecordTransaction method on the transaction service
-	mockTransactionService.On("RecordTransaction", (*int)(nil), &userID, "deposit", 50.0).Return(nil)
+	setupServiceMock()
+	mockServiceTestHelper.walletRepo.On("Deposit", testUserID, 50.0).Return(nil)
+	mockServiceTestHelper.transactionService.On("RecordTransaction", (*int)(nil), &testUserID, "deposit", 50.0).Return(nil)
 
 	// Create the wallet service
-	walletService := NewWalletService(mockRepo, mockTransactionService)
+	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
 
 	// Call the Deposit method
 	err := walletService.Deposit(1, 50.0)
@@ -46,76 +49,84 @@ func TestDeposit(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify that expectations are met
-	mockRepo.AssertExpectations(t)
-	mockTransactionService.AssertExpectations(t)
+	mockServiceTestHelper.walletRepo.AssertExpectations(t)
+	mockServiceTestHelper.transactionService.AssertExpectations(t)
 }
 
-// Test Withdraw (with sufficient funds)
-func TestWithdraw_SufficientFunds(t *testing.T) {
-	mockRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
+func TestWithdraw(t *testing.T) {
+	// Define the test cases
+	tests := []struct {
+		name                        string
+		amount                      float64
+		mockWithdrawResult          error
+		expectError                 bool
+		expectedErrorMessage        string
+		mockRecordTransactionCalled bool
+	}{
+		{
+			name:                        "SufficientFunds",
+			amount:                      50.0,
+			mockWithdrawResult:          nil,
+			expectError:                 false,
+			expectedErrorMessage:        "",
+			mockRecordTransactionCalled: true,
+		},
+		{
+			name:                        "InsufficientFunds",
+			amount:                      100.0,
+			mockWithdrawResult:          errors.New("insufficient funds"),
+			expectError:                 true,
+			expectedErrorMessage:        "insufficient funds",
+			mockRecordTransactionCalled: false,
+		},
+	}
 
-	userID := 1
-	// Mock the Withdraw method on the repository
-	mockRepo.On("Withdraw", userID, 50.0).Return(nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock services and helpers
+			setupServiceMock()
 
-	// Mock the RecordTransaction method on the transaction service
-	mockTransactionService.On("RecordTransaction", &userID, (*int)(nil), "withdraw", 50.0).Return(nil)
+			// Mock the Withdraw method
+			mockServiceTestHelper.walletRepo.On("Withdraw", testUserID, tt.amount).Return(tt.mockWithdrawResult)
 
-	// Create the wallet service
-	walletService := NewWalletService(mockRepo, mockTransactionService)
+			// Only set up the transaction recording mock if it's expected to be called
+			if tt.mockRecordTransactionCalled {
+				mockServiceTestHelper.transactionService.On("RecordTransaction", &testUserID, (*int)(nil), "withdraw", tt.amount).Return(nil)
+			}
 
-	// Call the Withdraw method
-	err := walletService.Withdraw(userID, 50.0)
+			// Create the wallet service using the mocked services
+			walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
 
-	// Check no errors
-	assert.NoError(t, err)
+			// Call the Withdraw method
+			err := walletService.Withdraw(testUserID, tt.amount)
 
-	// Verify that expectations are met
-	mockRepo.AssertExpectations(t)
-	mockTransactionService.AssertExpectations(t)
-}
+			// Check the error expectation
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedErrorMessage, err.Error())
+			} else {
+				assert.NoError(t, err)
+			}
 
-// Test Withdraw (with insufficient funds)
-func TestWithdraw_InsufficientFunds(t *testing.T) {
-	mockRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
-
-	userID := 1
-	// Mock the Withdraw method to simulate insufficient funds
-	mockRepo.On("Withdraw", userID, 100.0).Return(errors.New("insufficient funds"))
-
-	// Create the wallet service
-	walletService := NewWalletService(mockRepo, mockTransactionService)
-
-	// Call the Withdraw method with insufficient funds
-	err := walletService.Withdraw(userID, 100.0)
-
-	// Check that an error is returned
-	assert.Error(t, err)
-	assert.Equal(t, "insufficient funds", err.Error())
-
-	// Verify that expectations are met (no transaction recording should happen)
-	mockRepo.AssertExpectations(t)
-	mockTransactionService.AssertNotCalled(t, "RecordTransaction", mock.Anything, mock.Anything, mock.Anything)
+			// Verify that the mock expectations are met
+			mockServiceTestHelper.walletRepo.AssertExpectations(t)
+			if tt.mockRecordTransactionCalled {
+				mockServiceTestHelper.transactionService.AssertExpectations(t)
+			} else {
+				mockServiceTestHelper.transactionService.AssertNotCalled(t, "RecordTransaction", mock.Anything, mock.Anything, mock.Anything)
+			}
+		})
+	}
 }
 
 func TestTransfer(t *testing.T) {
-	mockRepo := new(wallet.MockWalletRepository)
-	mockTransactionService := new(transaction.MockTransactionService)
-	fromUserId, toUserId := 1, 2
-	// Mock the Withdraw method for the sender (user 1)
-	mockRepo.On("Withdraw", fromUserId, 50.0).Return(nil) // Ensure the method matches the expected call
-
-	// Mock the Deposit method for the recipient (user 2)
-	mockRepo.On("Deposit", toUserId, 50.0).Return(nil)
-
-	// Mock the RecordTransaction method for both users
-	mockTransactionService.On("RecordTransaction", &fromUserId, &toUserId, "transfer", 50.0).Return(nil)
-	// mockTransactionService.On("RecordTransaction", 2, "transfer in", 50.0).Return(nil)
+	setupServiceMock()
+	mockServiceTestHelper.walletRepo.On("Withdraw", testUserID, 50.0).Return(nil)
+	mockServiceTestHelper.walletRepo.On("Deposit", testToUserID, 50.0).Return(nil)
+	mockServiceTestHelper.transactionService.On("RecordTransaction", &testUserID, &testToUserID, "transfer", 50.0).Return(nil)
 
 	// Create the wallet service
-	walletService := NewWalletService(mockRepo, mockTransactionService)
+	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
 
 	// Call the Transfer method
 	err := walletService.Transfer(1, 2, 50.0)
@@ -124,6 +135,6 @@ func TestTransfer(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify that expectations are met
-	mockRepo.AssertExpectations(t)
-	mockTransactionService.AssertExpectations(t)
+	mockServiceTestHelper.walletRepo.AssertExpectations(t)
+	mockServiceTestHelper.transactionService.AssertExpectations(t)
 }
