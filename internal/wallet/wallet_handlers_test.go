@@ -1,18 +1,16 @@
 package wallet
 
 import (
-	"bytes"
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/models"
 	mockAuth "centralized-wallet/tests/mocks/auth"
 	mockRedis "centralized-wallet/tests/mocks/redis"
 	mockTransaction "centralized-wallet/tests/mocks/transaction"
 	mockWallet "centralized-wallet/tests/mocks/wallet"
+	"centralized-wallet/tests/testutils"
 	"fmt"
 
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -68,20 +66,6 @@ func generateJWTForTest(userID int) string {
 	return token
 }
 
-// Helper function to prepare and execute a request
-func executeRequest(router *gin.Engine, method, url string, body interface{}, token string) *httptest.ResponseRecorder {
-	var reqBody []byte
-	if body != nil {
-		reqBody, _ = json.Marshal(body)
-	}
-	req, _ := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-	return w
-}
-
 // Balance Handler Test
 func TestBalanceHandler(t *testing.T) {
 	router := setupRouter()
@@ -90,7 +74,7 @@ func TestBalanceHandler(t *testing.T) {
 
 	// Generate JWT for user ID 1
 	token := generateJWTForTest(testUserID)
-	w := executeRequest(router, "GET", "/wallets/balance", nil, token)
+	w := testutils.ExecuteRequest(router, "GET", "/wallets/balance", nil, token)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, `{"balance":100}`, w.Body.String())
@@ -116,7 +100,7 @@ func TestDepositHandler(t *testing.T) {
 	token := generateJWTForTest(testUserID)
 
 	// Execute the request
-	w := executeRequest(router, "POST", "/wallets/deposit", body, token)
+	w := testutils.ExecuteRequest(router, "POST", "/wallets/deposit", body, token)
 
 	// Assert that the response code is OK
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -155,7 +139,7 @@ func TestWithdrawHandler(t *testing.T) {
 	token := generateJWTForTest(testUserID)
 
 	// Execute the request
-	w := executeRequest(router, "POST", "/wallets/withdraw", body, token)
+	w := testutils.ExecuteRequest(router, "POST", "/wallets/withdraw", body, token)
 
 	// Assert that the response code is OK
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -260,7 +244,7 @@ func TestTransferHandler(t *testing.T) {
 			token := generateJWTForTest(tc.userID)
 
 			// Execute the request using the reusable function
-			w := executeRequest(router, "POST", "/wallets/transfer", body, token)
+			w := testutils.ExecuteRequest(router, "POST", "/wallets/transfer", body, token)
 
 			// Assert status code and response body
 			assert.Equal(t, tc.expectedStatus, w.Code)
@@ -304,7 +288,7 @@ func TestTransactionHistoryHandler(t *testing.T) {
 
 	token := generateJWTForTest(testUserID)
 
-	w := executeRequest(router, "GET", "/wallets/transactions?order=desc&limit=10", nil, token)
+	w := testutils.ExecuteRequest(router, "GET", "/wallets/transactions?order=desc&limit=10", nil, token)
 
 	expectedResponse := fmt.Sprintf(`{
 		"transactions": [

@@ -52,12 +52,8 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 			return
 		}
 
-		// // Manually check claims for expiration
-		// if err := CheckTokenClaims(token); err != nil {
-		// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Token expired"})
-		// 	c.Abort()
-		// 	return
-		// }
+		c.Set("token", token)
+		c.Set("token_string", tokenString)
 
 		// Add the user ID to the context
 		claims, ok := token.Claims.(jwt.MapClaims)
