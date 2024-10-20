@@ -2,7 +2,6 @@ package mock_wallet
 
 import (
 	"centralized-wallet/internal/models"
-	"database/sql"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -61,8 +60,8 @@ func (m *MockWalletService) GetWalletByUserID(userID int) (*models.Wallet, error
 }
 
 // CreateWalletWithTx mocks the CreateWalletWithTx function
-func (m *MockWalletService) CreateWalletWithTx(tx *sql.Tx, userID int) (*models.Wallet, error) {
-	args := m.Called(tx, userID)
+func (m *MockWalletService) CreateWallet(userID int) (*models.Wallet, error) {
+	args := m.Called(userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

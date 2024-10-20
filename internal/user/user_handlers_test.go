@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"centralized-wallet/internal/models"
-	"centralized-wallet/internal/repository"
 	mockUser "centralized-wallet/tests/mocks/user"
 
 	"github.com/gin-gonic/gin"
@@ -67,7 +66,7 @@ func TestLoginHandler(t *testing.T) {
 	mockService := new(mockUser.MockUserService)
 
 	// Generate the hash for "password123" directly in the test
-	hashedPassword, _ := repository.HashPassword("password123")
+	hashedPassword, _ := HashPassword("password123")
 
 	// Mock LoginUser to return a valid user
 	user := &models.User{

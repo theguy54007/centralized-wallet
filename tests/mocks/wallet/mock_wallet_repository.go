@@ -2,7 +2,6 @@ package mock_wallet
 
 import (
 	"centralized-wallet/internal/models"
-	"database/sql"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -15,8 +14,8 @@ type MockWalletRepository struct {
 // Ensure MockWalletRepository implements WalletRepositoryInterface
 
 // CreateWalletWithTx mocks the CreateWalletWithTx function
-func (m *MockWalletRepository) CreateWalletWithTx(tx *sql.Tx, wallet *models.Wallet) error {
-	args := m.Called(tx, wallet)
+func (m *MockWalletRepository) CreateWallet(wallet *models.Wallet) error {
+	args := m.Called(wallet)
 	return args.Error(0)
 }
 

@@ -8,7 +8,7 @@ import (
 
 // WalletRepositoryInterface defines the methods for wallet operations
 type WalletRepositoryInterface interface {
-	CreateWalletWithTx(tx *sql.Tx, wallet *models.Wallet) error
+	CreateWallet(wallet *models.Wallet) error // Removed transaction
 	IsWalletNumberExists(walletNumber string) (bool, error)
 	GetWalletBalance(userID int) (float64, error)
 	GetWalletByUserID(userID int) (*models.Wallet, error)
@@ -42,10 +42,10 @@ func (repo *WalletRepository) UserExists(userID int) (bool, error) {
 	return exists, nil
 }
 
-func (repo *WalletRepository) CreateWalletWithTx(tx *sql.Tx, wallet *models.Wallet) error {
+func (repo *WalletRepository) CreateWallet(wallet *models.Wallet) error {
 	query := `INSERT INTO wallets (user_id, balance, wallet_number, created_at, updated_at)
 			  VALUES ($1, $2, $3, $4, $5)`
-	_, err := tx.Exec(query, wallet.UserID, wallet.Balance, wallet.WalletNumber, wallet.CreatedAt, wallet.UpdatedAt)
+	_, err := repo.db.Exec(query, wallet.UserID, wallet.Balance, wallet.WalletNumber, wallet.CreatedAt, wallet.UpdatedAt)
 	return err
 }
 

@@ -3,7 +3,6 @@ package wallet
 import (
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/transaction"
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"time"
@@ -17,7 +16,7 @@ type WalletServiceInterface interface {
 	Withdraw(userID int, amount float64) (*models.Wallet, error)
 	Transfer(fromUserID int, toWalletNumber string, amount float64) (*models.Wallet, error)
 	GetWalletByUserID(userID int) (*models.Wallet, error)
-	CreateWalletWithTx(tx *sql.Tx, userID int) (*models.Wallet, error)
+	CreateWallet(userID int) (*models.Wallet, error)
 }
 
 // WalletService handles wallet operations using the repository interface
@@ -36,7 +35,7 @@ func NewWalletService(walletRepo WalletRepositoryInterface, transactionService t
 	return &WalletService{walletRepo: walletRepo, transactionService: transactionService}
 }
 
-func (ws *WalletService) CreateWalletWithTx(tx *sql.Tx, userID int) (*models.Wallet, error) {
+func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
 
 	walletNumber := ws.GenerateUniqueWalletNumber(userID)
 	wallet := &models.Wallet{
@@ -48,7 +47,7 @@ func (ws *WalletService) CreateWalletWithTx(tx *sql.Tx, userID int) (*models.Wal
 	}
 
 	// Call repository to insert wallet in the database using the transaction
-	err := ws.walletRepo.CreateWalletWithTx(tx, wallet)
+	err := ws.walletRepo.CreateWallet(wallet)
 	if err != nil {
 		return nil, err
 	}

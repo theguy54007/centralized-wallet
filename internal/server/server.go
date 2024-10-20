@@ -12,7 +12,6 @@ import (
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/database"
 	"centralized-wallet/internal/redis"
-	"centralized-wallet/internal/repository"
 	"centralized-wallet/internal/transaction"
 	"centralized-wallet/internal/user"
 	"centralized-wallet/internal/wallet"
@@ -35,15 +34,15 @@ func NewServer() *http.Server {
 	rd := redis.NewRedisService()
 	dbService := database.New()
 	// Initialize repositories
-	userRepo := repository.NewUserRepository(dbService.GetDB())
+	userRepo := user.NewUserRepository(dbService.GetDB())
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
-	transactionRepo := repository.NewTransactionRepository(dbService.GetDB())
+	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
 
 	// Initialize services
 
 	transactionService := transaction.NewTransactionService(transactionRepo)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
-	userService := user.NewUserService(userRepo, walletService)
+	userService := user.NewUserService(userRepo)
 	NewServer := &Server{
 		port: port,
 

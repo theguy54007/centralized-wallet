@@ -1,4 +1,4 @@
-package transaction
+package mock_transaction
 
 import (
 	"centralized-wallet/internal/models"

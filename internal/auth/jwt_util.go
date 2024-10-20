@@ -11,11 +11,17 @@ import (
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 // GenerateJWT generates a new JWT token for a user
-func GenerateJWT(userID int) (string, error) {
+func GenerateJWT(userID int, expiration ...time.Duration) (string, error) {
+	// Set default expiration time to 72 hours if not provided
+	expirationTime := time.Hour * 72
+	if len(expiration) > 0 {
+		expirationTime = expiration[0] // Use the provided expiration time
+	}
+
 	// Set token claims
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(), // Token expiration (e.g., 72 hours)
+		"exp":     time.Now().Add(expirationTime).Unix(), // Token expiration
 	}
 
 	// Create the token
@@ -24,17 +30,6 @@ func GenerateJWT(userID int) (string, error) {
 	// Sign the token with the secret key
 	return token.SignedString(jwtSecret)
 }
-
-// ValidateJWT validates the given token string
-// func ValidateJWT(tokenString string) (*jwt.Token, error) {
-// 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-// 		// Ensure the token's signing method is HMAC (HS256)
-// 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-// 			return nil, jwt.ErrSignatureInvalid
-// 		}
-// 		return jwtSecret, nil
-// 	})
-// }
 
 func ValidateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
