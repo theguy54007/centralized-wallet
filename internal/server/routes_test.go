@@ -60,7 +60,7 @@ func generateJWTForTest(userId int) string {
 func setupRouterWithRealDB() *gin.Engine {
 	// Initialize repositories and services
 	userRepo := repository.NewUserRepository(dbService.GetDB())
-	walletRepo := repository.NewWalletRepository(dbService.GetDB())
+	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := repository.NewTransactionRepository(dbService.GetDB())
 
 	userService := user.NewUserService(userRepo)

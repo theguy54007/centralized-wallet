@@ -36,7 +36,7 @@ func NewServer() *http.Server {
 	dbService := database.New()
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(dbService.GetDB())
-	walletRepo := repository.NewWalletRepository(dbService.GetDB())
+	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := repository.NewTransactionRepository(dbService.GetDB())
 
 	// Initialize services

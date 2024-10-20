@@ -1,6 +1,8 @@
 package mock_wallet
 
 import (
+	"centralized-wallet/internal/models"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -22,19 +24,19 @@ func (m *MockWalletService) UserExists(userID int) (bool, error) {
 }
 
 // Deposit mocks the Deposit function
-func (m *MockWalletService) Deposit(userID int, amount float64) error {
+func (m *MockWalletService) Deposit(userID int, amount float64) (*models.Wallet, error) {
 	args := m.Called(userID, amount)
-	return args.Error(0)
+	return args.Get(0).(*models.Wallet), args.Error(1)
 }
 
 // Withdraw mocks the Withdraw function
-func (m *MockWalletService) Withdraw(userID int, amount float64) error {
+func (m *MockWalletService) Withdraw(userID int, amount float64) (*models.Wallet, error) {
 	args := m.Called(userID, amount)
-	return args.Error(0)
+	return args.Get(0).(*models.Wallet), args.Error(1)
 }
 
 // Transfer mocks the Transfer function
-func (m *MockWalletService) Transfer(fromUserID, toUserID int, amount float64) error {
+func (m *MockWalletService) Transfer(fromUserID, toUserID int, amount float64) (*models.Wallet, error) {
 	args := m.Called(fromUserID, toUserID, amount)
-	return args.Error(0)
+	return args.Get(0).(*models.Wallet), args.Error(1)
 }
