@@ -79,6 +79,7 @@ func TestGetTransactionHistory_Success(t *testing.T) {
 	walletNumber := "test-wallet"
 	orderBy := "created_at"
 	limit := 10
+	offset := 0
 	fromEmail := "from@example.com"
 	toEmail := "to@example.com"
 	// Mock the GetTransactionHistory method
@@ -95,7 +96,7 @@ func TestGetTransactionHistory_Success(t *testing.T) {
 	}, nil)
 
 	// Act: Call the GetTransactionHistory method
-	transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit)
+	transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit, offset)
 
 	// Assert: Check the expected results
 	assert.NoError(t, err)
@@ -117,12 +118,13 @@ func TestGetTransactionHistory_NoResults(t *testing.T) {
 	walletNumber := "test-wallet"
 	orderBy := "created_at"
 	limit := 10
+	offset := 0
 
 	// Mock the GetTransactionHistory method to return no transactions
 	mockTransactionTestHelper.repo.On("GetTransactionHistory", walletNumber, orderBy, limit).Return([]models.TransactionWithEmails{}, nil)
 
 	// Act: Call the GetTransactionHistory method
-	transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit)
+	transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit, offset)
 
 	// Assert: Check the expected results
 	assert.NoError(t, err)
