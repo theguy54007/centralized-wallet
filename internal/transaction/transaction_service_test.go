@@ -39,5 +39,5 @@ func TestRecordTransactionService_Error(t *testing.T) {
 
 	// Assert: Check the expected results
 	assert.Error(t, err)
-	assert.Equal(t, utils.ServiceErrWalletNumberNil, err.Error())
+	assert.Equal(t, utils.ServiceErrWalletNumberNil.Error(), err.Error())
 }

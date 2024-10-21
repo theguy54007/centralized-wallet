@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 	mockRedis "centralized-wallet/tests/mocks/redis"
 	mockWallet "centralized-wallet/tests/mocks/wallet"
+	"centralized-wallet/tests/testutils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -55,83 +57,72 @@ func resetMocks() {
 	mockWalletService.ExpectedCalls = nil
 }
 
-func TestWalletNumberMiddleware_FetchFromRedis(t *testing.T) {
-	resetMocks()
-
-	// Set up mock Redis to return a wallet number
-	mockRedisService.On("Get", mock.Anything, userIDStr).Return(walletNumber, nil)
-
-	// Set up the request and execute it
-	req, _ := http.NewRequest("GET", "/test", nil)
+// Helper function to execute the request and return the response
+func executeRequest(method, path string) *httptest.ResponseRecorder {
+	req, _ := http.NewRequest(method, path, nil)
 	w := httptest.NewRecorder()
 	router := setupRouterForMiddlewareTest()
 	router.ServeHTTP(w, req)
-
-	// Assertions
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"wallet_number":"WAL-123456"}`, w.Body.String())
-	mockRedisService.AssertCalled(t, "Get", mock.Anything, userIDStr)
+	return w
 }
 
-func TestWalletNumberMiddleware_FetchFromDatabaseAndCacheIt(t *testing.T) {
-	resetMocks()
+// Table-driven tests for wallet number middleware
+func TestWalletNumberMiddleware(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		mockSetup             func()
+		expectedStatus        int
+		expectedErrorResponse *utils.AppError
+		expectedResponseBody  string
+	}{
+		{
+			name: "FetchFromRedis",
+			mockSetup: func() {
+				mockRedisService.On("Get", mock.Anything, userIDStr).Return(walletNumber, nil)
+			},
+			expectedStatus:       http.StatusOK,
+			expectedResponseBody: `{"wallet_number":"WAL-123456"}`,
+		},
+		{
+			name: "FetchFromDatabaseAndCacheIt",
+			mockSetup: func() {
+				// Redis returns nil, so fallback to DB
+				mockRedisService.On("Get", mock.Anything, userIDStr).Return("", redis.Nil)
+				mockWalletService.On("GetWalletByUserID", userID).Return(&models.Wallet{WalletNumber: walletNumber}, nil)
+				mockRedisService.On("Set", mock.Anything, userIDStr, walletNumber, 24*time.Hour).Return(nil)
+			},
+			expectedStatus:       http.StatusOK,
+			expectedResponseBody: `{"wallet_number":"WAL-123456"}`,
+		},
+		{
+			name: "DatabaseError",
+			mockSetup: func() {
+				// Redis returns nil, so fallback to DB
+				mockRedisService.On("Get", mock.Anything, userIDStr).Return("", redis.Nil)
+				mockWalletService.On("GetWalletByUserID", userID).Return(nil, errors.New("database error"))
+			},
+			expectedStatus:        http.StatusInternalServerError,
+			expectedErrorResponse: utils.ErrInternalServerError,
+		},
+	}
 
-	// Redis returns a nil result, so fallback to DB
-	mockRedisService.On("Get", mock.Anything, userIDStr).Return("", redis.Nil)
-	// Wallet service returns a valid wallet
-	mockWalletService.On("GetWalletByUserID", userID).Return(&models.Wallet{WalletNumber: walletNumber}, nil)
-	// Cache the wallet number in Redis
-	mockRedisService.On("Set", mock.Anything, userIDStr, walletNumber, 24*time.Hour).Return(nil)
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset mocks and set them up for the test case
+			resetMocks()
+			tt.mockSetup()
 
-	// Set up the request and execute it
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-	router := setupRouterForMiddlewareTest()
-	router.ServeHTTP(w, req)
+			// Execute the request and get the response
+			w := executeRequest("GET", "/test")
 
-	// Assertions
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, `{"wallet_number":"WAL-123456"}`, w.Body.String())
-	mockRedisService.AssertCalled(t, "Get", mock.Anything, userIDStr)
-	mockWalletService.AssertCalled(t, "GetWalletByUserID", userID)
-	mockRedisService.AssertCalled(t, "Set", mock.Anything, userIDStr, walletNumber, 24*time.Hour)
-}
-
-func TestWalletNumberMiddleware_RedisError(t *testing.T) {
-	resetMocks()
-
-	// Redis returns an unexpected error
-	mockRedisService.On("Get", mock.Anything, userIDStr).Return("", errors.New("redis error"))
-
-	// Set up the request and execute it
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-	router := setupRouterForMiddlewareTest()
-	router.ServeHTTP(w, req)
-
-	// Assertions
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.JSONEq(t, `{"status":"error","error":"Redis error"}`, w.Body.String())
-	mockRedisService.AssertCalled(t, "Get", mock.Anything, userIDStr)
-}
-
-func TestWalletNumberMiddleware_DatabaseError(t *testing.T) {
-	resetMocks()
-
-	// Redis returns nil, so fallback to DB
-	mockRedisService.On("Get", mock.Anything, userIDStr).Return("", redis.Nil)
-	// Wallet service returns an error
-	mockWalletService.On("GetWalletByUserID", userID).Return(nil, errors.New("database error"))
-
-	// Set up the request and execute it
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-	router := setupRouterForMiddlewareTest()
-	router.ServeHTTP(w, req)
-
-	// Assertions
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.JSONEq(t, `{"status":"error","error":"Failed to fetch wallet number"}`, w.Body.String())
-	mockRedisService.AssertCalled(t, "Get", mock.Anything, userIDStr)
-	mockWalletService.AssertCalled(t, "GetWalletByUserID", userID)
+			if tt.expectedErrorResponse != nil {
+				testutils.AssertAPIErrorResponse(t, w, tt.expectedErrorResponse)
+			} else {
+				assert.Equal(t, tt.expectedStatus, w.Code)
+				assert.JSONEq(t, tt.expectedResponseBody, w.Body.String())
+			}
+			mockRedisService.AssertExpectations(t)
+			mockWalletService.AssertExpectations(t)
+		})
+	}
 }

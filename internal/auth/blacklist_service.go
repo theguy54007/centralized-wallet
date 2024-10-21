@@ -30,7 +30,6 @@ func NewBlacklistService(redis *redisSerivice.RedisService) *BlacklistService {
 	}
 }
 
-// BlacklistToken adds the given JWT token to the blacklist with its expiration time
 // BlacklistToken blacklists a token by adding it to Redis with its expiration time
 func (b *BlacklistService) BlacklistToken(tokenString string, token *jwt.Token) error {
 	claims, ok := token.Claims.(jwt.MapClaims)

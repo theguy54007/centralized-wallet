@@ -22,7 +22,7 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 			tokenString = tokenString[7:]
 		} else {
-			utils.ErrorResponse(c, utils.ErrInvalidToken)
+			utils.ErrorResponse(c, utils.ErrInvalidAuthorization)
 			c.Abort()
 			return
 		}

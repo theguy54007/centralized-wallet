@@ -26,7 +26,7 @@ var (
 	Schema        = "public"
 )
 
-func StartPostgresContainer(applyMigration bool) (func(context.Context) error, error) {
+func StartPostgresContainer(applyMigration bool, migrationPath string) (func(context.Context) error, error) {
 	// Start the Postgres container with or without init scripts
 	dbContainer, err := postgres.Run(
 		context.Background(),
@@ -63,7 +63,7 @@ func StartPostgresContainer(applyMigration bool) (func(context.Context) error, e
 
 	// Apply migrations if required
 	if applyMigration {
-		if err := applyMigrations(); err != nil {
+		if err := applyMigrations(migrationPath); err != nil {
 			return dbContainer.Terminate, fmt.Errorf("failed to apply migrations: %v", err)
 		}
 	}
@@ -87,7 +87,7 @@ func InitEnv() {
 	os.Setenv("DB_SCHEMA", Schema)
 }
 
-func applyMigrations() error {
+func applyMigrations(migrationPath string) error {
 	// Set up connection string
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", Username, Password, Host, Port, Database, Schema)
 
@@ -106,7 +106,7 @@ func applyMigrations() error {
 
 	// Initialize the migration instance
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+MigrationPath, // Migration files location
+		"file://"+migrationPath, // Migration files location
 		"postgres",              // Database name
 		driver,
 	)

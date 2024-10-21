@@ -19,7 +19,7 @@ var dbService database.Service
 
 func TestMain(m *testing.M) {
 	// Start the Postgres container
-	teardown, err := testutils.StartPostgresContainer(true)
+	teardown, err := testutils.StartPostgresContainer(true, "../../../migrations")
 	if err != nil {
 		log.Fatalf("Could not start Postgres container for testing: %v", err)
 	}

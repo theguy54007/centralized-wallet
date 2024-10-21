@@ -1,19 +1,19 @@
 package user
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
 	"testing"
 
+	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 	mockAuth "centralized-wallet/tests/mocks/auth"
 	mockUser "centralized-wallet/tests/mocks/user"
 	"centralized-wallet/tests/testutils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 )
 
 // Test registration handler
@@ -37,62 +37,62 @@ func setupRouter() *gin.Engine {
 	return router
 }
 
-func TestRegistrationHandler(t *testing.T) {
+var (
+	email    = "test@example.com"
+	password = "password123"
+)
+
+func TestRegistrationHandler_Success(t *testing.T) {
+
 	router := setupRouter()
 	router.POST("/register", RegistrationHandler(mockHandlerTestHelper.userService))
-	mockHandlerTestHelper.userService.On("RegisterUser", "test@example.com", "password123").Return(&models.User{ID: 1, Email: "test@example.com"}, nil)
+	mockHandlerTestHelper.userService.On("RegisterUser", email, password).Return(&models.User{ID: 1, Email: "test@example.com"}, nil)
 
-	body := map[string]interface{}{"email": "test@example.com", "password": "password123"}
+	body := map[string]interface{}{"email": "test@example.com", "password": password}
 	w := testutils.ExecuteRequest(router, "POST", "/register", body, "")
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-	expectedResponse := `{"message":"User registered successfully","user":{"id":1,"email":"test@example.com"}}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+	testutils.AssertAPISuccessResponse(t, w, utils.MsgUserRegistered, models.User{ID: 1, Email: email})
 }
 
 // Test registration handler with duplicate email
 func TestRegistrationHandler_DuplicateEmail(t *testing.T) {
 	router := setupRouter()
 	router.POST("/register", RegistrationHandler(mockHandlerTestHelper.userService))
-	mockHandlerTestHelper.userService.On("RegisterUser", "test@example.com", "password123").Return(nil, errors.New("email already in use"))
+	mockHandlerTestHelper.userService.On("RegisterUser", email, password).Return(nil, utils.ErrEmailAlreadyInUse)
 
-	body := map[string]interface{}{"email": "test@example.com", "password": "password123"}
+	body := map[string]interface{}{"email": email, "password": password}
 	w := testutils.ExecuteRequest(router, "POST", "/register", body, "")
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedResponse := `{"error":"Email already in use"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+	testutils.AssertAPIErrorResponse(t, w, utils.ErrEmailAlreadyInUse)
 }
 
 // Test login handler with JWT
-func TestLoginHandler(t *testing.T) {
+func TestLoginHandler_Success(t *testing.T) {
 	// Set JWT_SECRET environment variable for testing
 	os.Setenv("JWT_SECRET", "test-secret-key")
 	// Generate the hash for "password123" directly in the test
-	hashedPassword, _ := HashPassword("password123")
+	hashedPassword, _ := HashPassword(password)
 	// Mock LoginUser to return a valid user
 	user := &models.User{
 		ID:       1,
-		Email:    "test@example.com",
+		Email:    email,
 		Password: hashedPassword,
 	}
 
+	token, _ := auth.GenerateJWT(user.ID)
 	router := setupRouter()
-	mockHandlerTestHelper.userService.On("LoginUser", "test@example.com", "password123").Return(user, nil)
+	mockHandlerTestHelper.userService.On("LoginUser", user.Email, password).Return(user, nil)
 	router.POST("/login", LoginHandler(mockHandlerTestHelper.userService))
 
-	body := map[string]interface{}{"email": "test@example.com", "password": "password123"}
+	body := map[string]interface{}{"email": user.Email, "password": password}
 	w := testutils.ExecuteRequest(router, "POST", "/login", body, "")
-	assert.Equal(t, http.StatusOK, w.Code)
+	testutils.AssertAPISuccessResponse(t, w, "Login successful",
+		gin.H{
+			"token": token,
+			"user": map[string]any{
+				"id":    1,
+				"email": user.Email,
+			},
+		}, http.StatusOK)
 
-	var response map[string]interface{}
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-
-	// Assert that the response contains a JWT token
-	assert.NotEmpty(t, response["token"])
-	assert.Equal(t, "Login successful", response["message"])
-	assert.Equal(t, map[string]interface{}{"id": float64(1), "email": "test@example.com"}, response["user"])
 }
 
 // Test login handler with incorrect password
@@ -104,7 +104,5 @@ func TestLoginHandler_IncorrectPassword(t *testing.T) {
 	body := map[string]interface{}{"email": "test@example.com", "password": "wrongpassword"}
 	w := testutils.ExecuteRequest(router, "POST", "/login", body, "")
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	expectedResponse := `{"error":"Invalid email or password"}`
-	assert.JSONEq(t, expectedResponse, w.Body.String())
+	testutils.AssertAPIErrorResponse(t, w, utils.ErrInvalidCredentials)
 }
