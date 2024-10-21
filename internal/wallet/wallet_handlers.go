@@ -235,7 +235,7 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 		}
 
 		// Return the transactions as JSON
-		utils.SuccessResponse(c, utils.MsgTransactionRetrieved, gin.H{"transactions": transactions})
+		utils.SuccessResponse(c, utils.MsgTransactionRetrieved, gin.H{"wallet_number": walletNumber, "transactions": transactions})
 	}
 }
 

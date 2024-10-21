@@ -482,6 +482,57 @@ func TestTransactionHistoryHandler(t *testing.T) {
 			FromEmail: &testEmail,
 			ToEmail:   nil,
 		},
+		{
+			Transaction: models.Transaction{
+				ID:               3,
+				FromWalletNumber: &testFromWalletNumber,
+				ToWalletNumber:   &testToWalletNumber,
+				TransactionType:  "transfer",
+				Amount:           testAmount,
+				CreatedAt:        now,
+			},
+			FromEmail: &testEmail,
+			ToEmail:   &toTestEmail,
+		},
+		{
+			Transaction: models.Transaction{
+				ID:               4,
+				FromWalletNumber: &testToWalletNumber,
+				ToWalletNumber:   &testFromWalletNumber,
+				TransactionType:  "transfer",
+				Amount:           testAmount,
+				CreatedAt:        now,
+			},
+			FromEmail: &toTestEmail,
+			ToEmail:   &testEmail,
+		},
+	}
+
+	formatTransactions := []models.FormattedTransaction{
+		{
+			TransactionType: "deposit",
+			Amount:          100.0,
+			Direction:       "incoming",
+		},
+		{
+			TransactionType: "withdraw",
+			Amount:          testAmount,
+			Direction:       "outgoing",
+		},
+		{
+			TransactionType: "transfer",
+			Amount:          testAmount,
+			Direction:       "outgoing",
+			ToWalletNumber:  testToWalletNumber,
+			ToEmail:         toTestEmail,
+		},
+		{
+			TransactionType:  "transfer",
+			Amount:           testAmount,
+			Direction:        "incoming",
+			FromWalletNumber: testToWalletNumber,
+			FromEmail:        toTestEmail,
+		},
 	}
 
 	// Define the test cases
@@ -495,11 +546,13 @@ func TestTransactionHistoryHandler(t *testing.T) {
 				MockSetup: func() {
 					// Mock successful transaction history retrieval
 					mockHandlerTestHelper.transactionSerivce.On("GetTransactionHistory", testFromWalletNumber, "desc", 10, 0).
-						Return(transactions, nil)
+						Return(formatTransactions, nil)
+					mockHandlerTestHelper.transactionSerivce.On("FormatTransactionResponse", testFromWalletNumber, transactions).Return(formatTransactions)
 				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
-					"transactions": transactions,
+					"wallet_number": testFromWalletNumber,
+					"transactions":  formatTransactions,
 				},
 				ExpectedResponseError: nil,
 				ExpectedMessage:       utils.MsgTransactionRetrieved,
@@ -515,11 +568,12 @@ func TestTransactionHistoryHandler(t *testing.T) {
 				MockSetup: func() {
 					// Mock no transactions found (empty array)
 					mockHandlerTestHelper.transactionSerivce.On("GetTransactionHistory", testFromWalletNumber, "desc", 10, 0).
-						Return([]models.TransactionWithEmails{}, nil)
+						Return([]models.FormattedTransaction{}, nil)
 				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
-					"transactions": []models.TransactionWithEmails{}, // Expecting an empty array
+					"wallet_number": testFromWalletNumber,
+					"transactions":  []models.FormattedTransaction{}, // Expecting an empty array
 				},
 				ExpectedResponseError: nil,
 				ExpectedMessage:       utils.MsgTransactionRetrieved,

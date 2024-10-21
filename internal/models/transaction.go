@@ -17,3 +17,13 @@ type TransactionWithEmails struct {
 	FromEmail   *string `json:"from_email"`
 	ToEmail     *string `json:"to_email"`
 }
+
+type FormattedTransaction struct {
+	TransactionType  string  `json:"transaction_type"`
+	Amount           float64 `json:"amount"`
+	Direction        string  `json:"direction"`
+	FromWalletNumber string  `json:"from_wallet_number,omitempty"`
+	FromEmail        string  `json:"from_email,omitempty"`
+	ToWalletNumber   string  `json:"to_wallet_number,omitempty"`
+	ToEmail          string  `json:"to_email,omitempty"`
+}
