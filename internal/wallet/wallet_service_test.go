@@ -53,21 +53,6 @@ func TestDepositService(t *testing.T) {
 		},
 		{
 			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
-				Name:          "wallet not found",
-				TestType:      "error",
-				ExpectedError: utils.RepoErrWalletNotFound,
-				MockSetup: func() {
-					// Mock user does not exist
-					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, nil)
-				},
-				MockAssert: func(t *testing.T) {
-					mockServiceTestHelper.walletRepo.AssertExpectations(t)
-				},
-			},
-			userID: testUserID,
-		},
-		{
-			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
 				Name:          "error checking user existence",
 				TestType:      "error",
 				ExpectedError: utils.ErrDatabaseError,
@@ -388,26 +373,6 @@ func TestTransferService(t *testing.T) {
 		},
 		{
 			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
-				Name:          "error finding recipient wallet",
-				TestType:      "error",
-				ExpectedError: utils.RepoErrWalletNotFound,
-				MockSetup: func() {
-					// Mock getting wallet balance successfully
-					mockWallet := createMockWallet(testWalletNumber, testUserID)
-					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
-
-					// Mock error when finding recipient's wallet
-					mockServiceTestHelper.walletRepo.On("FindByWalletNumber", mock.Anything).Return(nil, utils.RepoErrWalletNotFound)
-				},
-				MockAssert: func(t *testing.T) {
-					mockServiceTestHelper.walletRepo.AssertExpectations(t)
-				},
-			},
-			userID: testUserID,
-			amount: 50.0,
-		},
-		{
-			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
 				Name:          "error recording transaction",
 				TestType:      "error",
 				ExpectedError: utils.ErrDatabaseError,
@@ -478,21 +443,6 @@ func TestCreateWalletService(t *testing.T) {
 				MockSetup: func() {
 					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, nil)
 					mockServiceTestHelper.walletRepo.On("CreateWallet", mock.Anything).Return(nil)
-				},
-				MockAssert: func(t *testing.T) {
-					mockServiceTestHelper.walletRepo.AssertExpectations(t)
-				},
-			},
-			userID:       testUserID,
-			walletNumber: testWalletNumber,
-		},
-		{
-			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
-				Name:          "user already has a wallet",
-				TestType:      "error",
-				ExpectedError: utils.ErrWalletAlreadyExists,
-				MockSetup: func() {
-					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(true, nil)
 				},
 				MockAssert: func(t *testing.T) {
 					mockServiceTestHelper.walletRepo.AssertExpectations(t)

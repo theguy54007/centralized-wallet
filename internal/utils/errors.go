@@ -68,4 +68,5 @@ var (
 
 	// Service errors
 	ServiceErrWalletAlreadyExists = errors.New("wallet already exists for this user")
+	ServiceErrWalletNumberNil     = errors.New("either fromWalletNumber or toWalletNumber must be provided")
 )

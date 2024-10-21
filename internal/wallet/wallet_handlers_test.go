@@ -33,7 +33,7 @@ func TestBalanceHandler(t *testing.T) {
 				MockSetup: func() {
 					// Mock successful balance retrieval
 					mockWallet := createMockWallet(testWalletNumber, testUserID)
-					mockHandlerTestHelper.walletService.On("GetBalance", testUserID).
+					mockHandlerTestHelper.walletService.On("GetWalletByUserID", testUserID).
 						Return(mockWallet, nil)
 				},
 				ExpectedStatus: http.StatusOK,
@@ -55,8 +55,8 @@ func TestBalanceHandler(t *testing.T) {
 				Method:   testRequest.Method,
 				MockSetup: func() {
 					// Mock wallet not found error
-					mockHandlerTestHelper.walletService.On("GetBalance", testUserID).
-						Return(0.0, utils.RepoErrWalletNotFound)
+					mockHandlerTestHelper.walletService.On("GetWalletByUserID", testUserID).
+						Return(nil, utils.RepoErrWalletNotFound)
 				},
 				ExpectedStatus:        http.StatusNotFound,
 				ExpectedResponseError: utils.ErrWalletNotFound,
@@ -71,8 +71,8 @@ func TestBalanceHandler(t *testing.T) {
 				Method:   testRequest.Method,
 				MockSetup: func() {
 					// Mock an internal server error
-					mockHandlerTestHelper.walletService.On("GetBalance", testUserID).
-						Return(0.0, utils.ErrInternalServerError)
+					mockHandlerTestHelper.walletService.On("GetWalletByUserID", testUserID).
+						Return(nil, utils.ErrInternalServerError)
 				},
 				ExpectedStatus:        http.StatusInternalServerError,
 				ExpectedResponseError: utils.ErrInternalServerError,
@@ -501,7 +501,7 @@ func TestTransactionHistoryHandler(t *testing.T) {
 				ID:               1,
 				FromWalletNumber: nil,
 				ToWalletNumber:   &testToWalletNumber,
-				Type:             "deposit",
+				TransactionType:  "deposit",
 				Amount:           100.0,
 				CreatedAt:        now,
 			},
@@ -513,7 +513,7 @@ func TestTransactionHistoryHandler(t *testing.T) {
 				ID:               2,
 				FromWalletNumber: &testFromWalletNumber,
 				ToWalletNumber:   nil,
-				Type:             "withdraw",
+				TransactionType:  "withdraw",
 				Amount:           testAmount,
 				CreatedAt:        now,
 			},

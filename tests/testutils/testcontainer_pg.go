@@ -22,7 +22,7 @@ var (
 	Username      = "user" // Make sure these values are set
 	Password      = "passwordhaha"
 	Database      = "test_db"
-	MigrationPath = "../../migrations" // Path to your migrations
+	MigrationPath = "../../../migrations" // Path to your migrations
 	Schema        = "public"
 )
 

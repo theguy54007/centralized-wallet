@@ -31,7 +31,7 @@ func (ts *TransactionService) RecordTransaction(tx *sql.Tx, fromWalletNumber, to
 	transaction := models.Transaction{
 		FromWalletNumber: fromWalletNumber,
 		ToWalletNumber:   toWalletNumber,
-		Type:             transactionType,
+		TransactionType:  transactionType,
 		Amount:           amount,
 		CreatedAt:        time.Now(),
 	}

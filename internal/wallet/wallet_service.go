@@ -69,11 +69,6 @@ func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
 	return wallet, nil
 }
 
-// GetBalance retrieves the balance of a user
-// func (ws *WalletService) GetBalance(userID int) (*models.Wallet, error) {
-// 	return ws.walletRepo.GetWalletByUserID(userID)
-// }
-
 func (ws *WalletService) UserExists(userID int) (bool, error) {
 	return ws.walletRepo.UserExists(userID)
 }

@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 	"database/sql"
 )
 
@@ -29,7 +30,7 @@ func (r *TransactionRepository) CreateTransaction(tx *sql.Tx, transaction *model
 		query,
 		transaction.FromWalletNumber,
 		transaction.ToWalletNumber,
-		transaction.Type,
+		transaction.TransactionType,
 		transaction.Amount,
 		transaction.CreatedAt,
 	)
@@ -78,7 +79,7 @@ func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, or
 			&transaction.FromWalletNumber,
 			&transaction.ToEmail,
 			&transaction.ToWalletNumber,
-			&transaction.Type,
+			&transaction.TransactionType,
 			&transaction.Amount,
 			&transaction.CreatedAt,
 		)
@@ -91,7 +92,7 @@ func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, or
 
 	// Check for any error that might have occurred during iteration
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, utils.ErrDatabaseError
 	}
 
 	return transactions, nil
