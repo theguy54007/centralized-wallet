@@ -2,6 +2,7 @@ package user
 
 import (
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 	"errors"
 	"fmt"
 
@@ -54,13 +55,13 @@ func (us *UserService) LoginUser(email, password string) (*models.User, error) {
 
 	// Check if user is nil (in case the repository returns a nil user)
 	if user == nil {
-		return nil, errors.New("invalid email or password")
+		return nil, utils.ErrInvalidCredentials
 	}
 
 	// Verify the provided password with the stored hashed password
 	err = verifyPassword(user.Password, password)
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		return nil, utils.ErrInvalidCredentials
 	}
 
 	return &models.User{

@@ -16,7 +16,7 @@ func BalanceHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		userID, exists := c.Get("user_id")
 		if !exists {
 			// This should not happen because the middleware would have already handled it
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
@@ -26,10 +26,10 @@ func BalanceHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			// Handle specific error cases
 			switch err {
 			case utils.RepoErrWalletNotFound:
-				utils.ErrorResponse(c, utils.ErrWalletNotFound)
+				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
 				return
 			default:
-				utils.ErrorResponse(c, utils.ErrInternalServerError)
+				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[BalanceHandler] Error getting wallet by user ID")
 				return
 			}
 		}
@@ -49,7 +49,7 @@ func DepositHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
@@ -58,7 +58,7 @@ func DepositHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			Amount float64 `json:"amount" binding:"required,gt=0"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {
-			utils.ErrorResponse(c, utils.ErrInvalidRequest)
+			utils.ErrorResponse(c, utils.ErrInvalidRequest, nil, "")
 			return
 		}
 
@@ -67,13 +67,10 @@ func DepositHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		if err != nil {
 			switch err {
 			case utils.RepoErrWalletNotFound:
-				utils.ErrorResponse(c, utils.ErrWalletNotFound)
-				return
-			case utils.ErrDatabaseError:
-				utils.ErrorResponse(c, utils.ErrDatabaseError)
+				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
 				return
 			default:
-				utils.ErrorResponse(c, utils.ErrInternalServerError)
+				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[DepositHandler] Error depositing amount")
 				return
 			}
 		}
@@ -92,7 +89,7 @@ func WithdrawHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
@@ -101,7 +98,7 @@ func WithdrawHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			Amount float64 `json:"amount" binding:"required,gt=0"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {
-			utils.ErrorResponse(c, utils.ErrInvalidRequest)
+			utils.ErrorResponse(c, utils.ErrInvalidRequest, nil, "")
 			return
 		}
 
@@ -110,15 +107,13 @@ func WithdrawHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		if err != nil {
 			switch err {
 			case utils.RepoErrUserNotFound:
-				utils.ErrorResponse(c, utils.ErrUserNotFound)
+				utils.ErrorResponse(c, utils.ErrUserNotFound, nil, "")
 				return
 			case utils.RepoErrInsufficientFunds:
-				utils.ErrorResponse(c, utils.ErrorInsufficientFunds)
+				utils.ErrorResponse(c, utils.ErrorInsufficientFunds, nil, "")
 				return
-			case utils.ErrDatabaseError:
-				utils.ErrorResponse(c, utils.ErrDatabaseError)
 			default:
-				utils.ErrorResponse(c, utils.ErrInternalServerError)
+				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[WithdrawHandler] Error withdrawing amount")
 				return
 			}
 		}
@@ -136,7 +131,7 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		// Get the fromUserID from context (set by JWTMiddleware)
 		fromUserID, exists := c.Get("user_id")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
@@ -146,7 +141,7 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			Amount         float64 `json:"amount" binding:"required,gt=0"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {
-			utils.ErrorResponse(c, utils.ErrInvalidRequest)
+			utils.ErrorResponse(c, utils.ErrInvalidRequest, nil, "")
 			return
 		}
 
@@ -156,18 +151,16 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			// Handle specific error cases based on the returned error
 			switch err {
 			case utils.RepoErrUserNotFound:
-				utils.ErrorResponse(c, utils.ErrUserNotFound)
+				utils.ErrorResponse(c, utils.ErrUserNotFound, nil, "")
 				return
 			case utils.RepoErrWalletNotFound:
-				utils.ErrorResponse(c, utils.ErrWalletNotFound)
+				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
 				return
 			case utils.RepoErrInsufficientFunds:
-				utils.ErrorResponse(c, utils.ErrorInsufficientFunds)
+				utils.ErrorResponse(c, utils.ErrorInsufficientFunds, nil, "")
 				return
-			case utils.ErrDatabaseError:
-				utils.ErrorResponse(c, utils.ErrDatabaseError)
 			default:
-				utils.ErrorResponse(c, utils.ErrInternalServerError)
+				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[TransferHandler] Error transferring amount")
 				return
 			}
 		}
@@ -186,34 +179,34 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 		// Get the user ID from the context (set by JWT middleware)
 		userIDInterface, exists := c.Get("user_id")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
 		// Ensure userID is of type int
 		if _, ok := userIDInterface.(int); !ok {
-			utils.ErrorResponse(c, utils.ErrInvalidUserId)
+			utils.ErrorResponse(c, utils.ErrInvalidUserId, nil, "")
 			return
 		}
 
 		// Get the wallet number from the context (set by WalletNumberMiddleware)
 		walletNumberInterface, exists := c.Get("wallet_number")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrWalletNotFound)
+			utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
 			return
 		}
 
 		// Ensure walletNumber is of type string
 		walletNumber, ok := walletNumberInterface.(string)
 		if !ok {
-			utils.ErrorResponse(c, utils.ErrorWalletNumber)
+			utils.ErrorResponse(c, utils.ErrorWalletNumber, nil, "")
 			return
 		}
 
 		// Parse query parameters for sorting and limiting
 		orderBy := c.DefaultQuery("order", "desc")
 		if orderBy != "asc" && orderBy != "desc" {
-			utils.ErrorResponse(c, utils.ErrorInvalidOrder)
+			utils.ErrorResponse(c, utils.ErrorInvalidOrder, nil, "")
 			return
 		}
 
@@ -222,7 +215,7 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 		limitStr := c.DefaultQuery("limit", "10")
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil || limit <= 0 || limit > maxLimit {
-			utils.ErrorResponse(c, utils.ErrorInvalidLimit)
+			utils.ErrorResponse(c, utils.ErrorInvalidLimit, nil, "")
 			return
 		}
 
@@ -230,14 +223,14 @@ func TransactionHistoryHandler(ts transaction.TransactionServiceInterface) gin.H
 		offsetStr := c.DefaultQuery("offset", "0")
 		offset, err := strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
-			utils.ErrorResponse(c, utils.ErrorInvalidOffset)
+			utils.ErrorResponse(c, utils.ErrorInvalidOffset, nil, "")
 			return
 		}
 
 		// Get the transaction history using the wallet number
 		transactions, err := ts.GetTransactionHistory(walletNumber, orderBy, limit, offset)
 		if err != nil {
-			utils.ErrorResponse(c, utils.ErrInternalServerError)
+			utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[TransactionHistoryHandler] Error getting transaction history")
 			return
 		}
 
@@ -251,7 +244,7 @@ func CreateWalletHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		// Get user ID from the context (set by JWTMiddleware)
 		userID, exists := c.Get("user_id")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
@@ -259,14 +252,11 @@ func CreateWalletHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		wallet, err := ws.CreateWallet(userID.(int))
 		if err != nil {
 			switch err {
-			case utils.ErrDatabaseError:
-				utils.ErrorResponse(c, utils.ErrDatabaseError)
-				return
 			case utils.ErrWalletAlreadyExists:
-				utils.ErrorResponse(c, utils.ErrWalletAlreadyExists)
+				utils.ErrorResponse(c, utils.ErrWalletAlreadyExists, nil, "")
 				return
 			default:
-				utils.ErrorResponse(c, utils.ErrInternalServerError)
+				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[CreateWalletHandler] Error creating wallet")
 				return
 			}
 		}

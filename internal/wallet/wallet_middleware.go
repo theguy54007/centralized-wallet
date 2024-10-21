@@ -18,7 +18,7 @@ func WalletNumberMiddleware(walletService WalletServiceInterface, redisClient re
 		// Get the user ID from the context (set by JWT middleware)
 		userID, exists := c.Get("user_id")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			c.Abort()
 			return
 		}
@@ -28,9 +28,9 @@ func WalletNumberMiddleware(walletService WalletServiceInterface, redisClient re
 		if err != nil {
 			switch err {
 			case utils.RepoErrWalletNotFound:
-				utils.ErrorResponse(c, utils.ErrWalletNotFound)
+				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
 			default:
-				utils.ErrorResponse(c, utils.ErrInternalServerError)
+				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[WalletNumberMiddleware] Error fetching wallet number")
 			}
 			c.Abort()
 			return

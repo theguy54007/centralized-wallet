@@ -43,8 +43,7 @@ func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
 	// check the user is already exists
 	userExists, err := ws.UserExists(userID)
 	if err != nil {
-		// Log the error if necessary and return it
-		return nil, utils.ErrDatabaseError // Wrap the error for better context
+		return nil, err
 	}
 	// if user already exists, return error
 	if userExists {

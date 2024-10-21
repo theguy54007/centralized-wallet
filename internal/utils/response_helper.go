@@ -23,8 +23,8 @@ func SuccessResponse(c *gin.Context, message string, data interface{}) {
 	})
 }
 
-func ErrorResponse(c *gin.Context, err *AppError) {
-	// logError(internalErr, err.Message, context)
+func ErrorResponse(c *gin.Context, err *AppError, internalErr error, context string) {
+	logError(internalErr, err.Message, context)
 	c.JSON(err.Code, APIResponse{
 		Status:  "error",
 		Message: err.Message,

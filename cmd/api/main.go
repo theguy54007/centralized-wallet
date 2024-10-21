@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"centralized-wallet/internal/logging"
 	"centralized-wallet/internal/server"
 )
 
@@ -37,6 +38,7 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
+	logging.InitLogger() // Initialize logger
 
 	server := server.NewServer()
 
@@ -54,4 +56,5 @@ func main() {
 	// Wait for the graceful shutdown to complete
 	<-done
 	log.Println("Graceful shutdown complete.")
+
 }

@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"centralized-wallet/internal/models"
-	"centralized-wallet/internal/utils"
 	"database/sql"
 )
 
@@ -92,7 +91,7 @@ func (repo *TransactionRepository) GetTransactionHistory(walletNumber string, or
 
 	// Check for any error that might have occurred during iteration
 	if err = rows.Err(); err != nil {
-		return nil, utils.ErrDatabaseError
+		return nil, err
 	}
 
 	return transactions, nil

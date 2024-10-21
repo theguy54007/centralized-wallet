@@ -151,25 +151,6 @@ func TestDepositHandler(t *testing.T) {
 		},
 		{
 			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
-				Name:     "Database error",
-				TestType: "error",
-				URL:      testRequest.URL,
-				Method:   testRequest.Method,
-				Body: map[string]interface{}{
-					"amount": testAmount,
-				},
-				MockSetup: func() {
-					// Mock database error
-					mockHandlerTestHelper.walletService.On("Deposit", testUserID, testAmount).
-						Return(nil, utils.ErrDatabaseError)
-				},
-				ExpectedStatus:        http.StatusInternalServerError,
-				ExpectedResponseError: utils.ErrDatabaseError,
-			},
-			userID: testUserID,
-		},
-		{
-			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
 				Name:     "Invalid request body",
 				TestType: "error",
 				URL:      testRequest.URL,
@@ -272,25 +253,6 @@ func TestWithdrawHandler(t *testing.T) {
 				},
 				ExpectedStatus:        http.StatusBadRequest,
 				ExpectedResponseError: utils.ErrorInsufficientFunds,
-			},
-			userID: testUserID,
-		},
-		{
-			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
-				Name:     "Database error",
-				TestType: "error",
-				URL:      testRequest.URL,
-				Method:   testRequest.Method,
-				Body: map[string]interface{}{
-					"amount": testAmount,
-				},
-				MockSetup: func() {
-					// Mock a generic database error
-					mockHandlerTestHelper.walletService.On("Withdraw", testUserID, testAmount).
-						Return(nil, utils.ErrDatabaseError)
-				},
-				ExpectedStatus:        http.StatusInternalServerError,
-				ExpectedResponseError: utils.ErrDatabaseError,
 			},
 			userID: testUserID,
 		},

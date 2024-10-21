@@ -22,14 +22,14 @@ func RegistrationHandler(us UserServiceInterface) gin.HandlerFunc {
 		// Validate the request body
 		if err := c.ShouldBindJSON(&request); err != nil {
 			if err.Error() == "Key: 'Email' Error:Field validation for 'Email' failed" {
-				utils.ErrorResponse(c, utils.ErrInvalidEmailFormat)
+				utils.ErrorResponse(c, utils.ErrInvalidEmailFormat, nil, "")
 				return
 			}
 			if err.Error() == "Key: 'Password' Error:Field validation for 'Password' failed" {
-				utils.ErrorResponse(c, utils.ErrPasswordTooShort)
+				utils.ErrorResponse(c, utils.ErrPasswordTooShort, nil, "")
 				return
 			}
-			utils.ErrorResponse(c, utils.ErrInvalidRequest)
+			utils.ErrorResponse(c, utils.ErrInvalidRequest, nil, "")
 			return
 		}
 
@@ -37,10 +37,10 @@ func RegistrationHandler(us UserServiceInterface) gin.HandlerFunc {
 		user, err := us.RegisterUser(request.Email, request.Password)
 		if err != nil {
 			if errors.Is(err, utils.ErrEmailAlreadyInUse) {
-				utils.ErrorResponse(c, utils.ErrEmailAlreadyInUse)
+				utils.ErrorResponse(c, utils.ErrEmailAlreadyInUse, nil, "")
 				return
 			}
-			utils.ErrorResponse(c, utils.ErrUserCreationFailed)
+			utils.ErrorResponse(c, utils.ErrUserCreationFailed, err, "")
 			return
 		}
 
@@ -59,21 +59,21 @@ func LoginHandler(us UserServiceInterface) gin.HandlerFunc {
 
 		// Validate the input
 		if err := c.ShouldBindJSON(&request); err != nil {
-			utils.ErrorResponse(c, utils.ErrInvalidRequest)
+			utils.ErrorResponse(c, utils.ErrInvalidRequest, nil, "")
 			return
 		}
 
 		// Authenticate the user
 		user, err := us.LoginUser(request.Email, request.Password)
 		if err != nil {
-			utils.ErrorResponse(c, utils.ErrInvalidCredentials)
+			utils.ErrorResponse(c, utils.ErrInvalidCredentials, nil, "")
 			return
 		}
 
 		// Generate a JWT token
 		token, err := auth.GenerateJWT(user.ID)
 		if err != nil {
-			utils.ErrorResponse(c, utils.ErrTokenGenerationFailed)
+			utils.ErrorResponse(c, utils.ErrTokenGenerationFailed, nil, "")
 			return
 		}
 
@@ -91,21 +91,21 @@ func LogoutHandler(blacklistService *auth.BlacklistService) gin.HandlerFunc {
 		// Get the token string from context (set by JWT middleware)
 		tokenString, exists := c.Get("token_string")
 		if !exists {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			return
 		}
 
 		// Get the token from context (set by JWT middleware)
 		token, exists := c.Get("token")
 		if !exists || token == nil {
-			utils.ErrorResponse(c, utils.ErrInvalidToken)
+			utils.ErrorResponse(c, utils.ErrInvalidToken, nil, "")
 			return
 		}
 
 		// Add the token to the blacklist
 		err := blacklistService.BlacklistToken(tokenString.(string), token.(*jwt.Token))
 		if err != nil {
-			utils.ErrorResponse(c, utils.ErrInternalServerError)
+			utils.ErrorResponse(c, utils.ErrInternalServerError, err, "")
 			return
 		}
 

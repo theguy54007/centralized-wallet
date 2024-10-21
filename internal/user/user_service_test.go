@@ -2,6 +2,7 @@ package user
 
 import (
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 	mockUser "centralized-wallet/tests/mocks/user"
 	"testing"
 
@@ -98,6 +99,6 @@ func TestLoginUser_InvalidEmailOrPassword(t *testing.T) {
 
 	// Assert
 	assert.Nil(t, user)
-	assert.EqualError(t, err, "invalid email or password")
+	assert.EqualError(t, err, utils.ErrInvalidCredentials.Error())
 	mockServiceTestHelper.userRepo.AssertExpectations(t)
 }

@@ -13,7 +13,7 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
 		if tokenString == "" {
-			utils.ErrorResponse(c, utils.ErrUnauthorized)
+			utils.ErrorResponse(c, utils.ErrUnauthorized, nil, "")
 			c.Abort()
 			return
 		}
@@ -22,7 +22,7 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 			tokenString = tokenString[7:]
 		} else {
-			utils.ErrorResponse(c, utils.ErrInvalidAuthorization)
+			utils.ErrorResponse(c, utils.ErrInvalidAuthorization, nil, "")
 			c.Abort()
 			return
 		}
@@ -30,12 +30,12 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		// Check if the token is blacklisted
 		isBlacklisted, err := blacklistService.IsTokenBlacklisted(tokenString)
 		if err != nil {
-			utils.ErrorResponse(c, utils.ErrInternalServerError)
+			utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[JWTMiddleware] Error checking if token is blacklisted")
 			c.Abort()
 			return
 		}
 		if isBlacklisted {
-			utils.ErrorResponse(c, utils.ErrInvalidToken) // Or custom error for blacklisted token
+			utils.ErrorResponse(c, utils.ErrInvalidToken, nil, "") // Or custom error for blacklisted token
 			c.Abort()
 			return
 		}
@@ -44,9 +44,9 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		token, err := ValidateJWT(tokenString)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
-				utils.ErrorResponse(c, utils.ErrTokenExpired)
+				utils.ErrorResponse(c, utils.ErrTokenExpired, nil, "")
 			} else {
-				utils.ErrorResponse(c, utils.ErrInvalidToken)
+				utils.ErrorResponse(c, utils.ErrInvalidToken, nil, "")
 			}
 			c.Abort()
 			return
@@ -61,7 +61,7 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		if ok && token.Valid {
 			c.Set("user_id", int(claims["user_id"].(float64)))
 		} else {
-			utils.ErrorResponse(c, utils.ErrInvalidToken)
+			utils.ErrorResponse(c, utils.ErrInvalidToken, nil, "")
 			c.Abort()
 			return
 		}
