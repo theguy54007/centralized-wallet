@@ -2,6 +2,7 @@ package utils
 
 import (
 	// "centralized-wallet/internal/apperrors"
+	"centralized-wallet/internal/logging"
 	"log"
 	"net/http"
 
@@ -33,4 +34,5 @@ func ErrorResponse(c *gin.Context, err *AppError, internalErr error, context str
 
 func logError(err error, message string, context string) {
 	log.Printf("[ERROR] %s: %s, Details: %v", context, message, err)
+	logging.Log.Error(err, message, context)
 }
