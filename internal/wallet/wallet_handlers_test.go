@@ -36,6 +36,9 @@ func TestBalanceHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("GetWalletByUserID", testUserID).
 						Return(mockWallet, nil)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
 					"wallet_number": testWalletNumber,
@@ -58,6 +61,9 @@ func TestBalanceHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("GetWalletByUserID", testUserID).
 						Return(nil, utils.RepoErrWalletNotFound)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus:        http.StatusNotFound,
 				ExpectedResponseError: utils.ErrWalletNotFound,
 			},
@@ -73,6 +79,9 @@ func TestBalanceHandler(t *testing.T) {
 					// Mock an internal server error
 					mockHandlerTestHelper.walletService.On("GetWalletByUserID", testUserID).
 						Return(nil, utils.ErrInternalServerError)
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
 				},
 				ExpectedStatus:        http.StatusInternalServerError,
 				ExpectedResponseError: utils.ErrInternalServerError,
@@ -117,8 +126,9 @@ func TestDepositHandler(t *testing.T) {
 							Balance:   testAmount + 100.0, // Assume balance is updated after deposit
 							UpdatedAt: now,
 						}, nil)
-					// Mock recording the transaction
-					mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", (*int)(nil), &testUserID, "deposit", testAmount).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
 				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
@@ -144,6 +154,9 @@ func TestDepositHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("Deposit", testUserID, testAmount).
 						Return(nil, utils.RepoErrWalletNotFound)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus:        http.StatusNotFound,
 				ExpectedResponseError: utils.ErrWalletNotFound,
 			},
@@ -161,6 +174,7 @@ func TestDepositHandler(t *testing.T) {
 				MockSetup: func() {
 					// No service mock required for invalid request
 				},
+				MockAssert:            func(t *testing.T) {},
 				ExpectedStatus:        http.StatusBadRequest,
 				ExpectedResponseError: utils.ErrInvalidRequest,
 			},
@@ -205,8 +219,9 @@ func TestWithdrawHandler(t *testing.T) {
 							Balance:   50.0,
 							UpdatedAt: now,
 						}, nil)
-					// Mock transaction record
-					mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", &testUserID, (*int)(nil), "withdraw", testAmount).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
 				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
@@ -232,6 +247,9 @@ func TestWithdrawHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("Withdraw", testUserID, testAmount).
 						Return(nil, utils.RepoErrUserNotFound)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus:        http.StatusNotFound,
 				ExpectedResponseError: utils.ErrUserNotFound,
 			},
@@ -251,6 +269,9 @@ func TestWithdrawHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("Withdraw", testUserID, testAmount).
 						Return(nil, utils.RepoErrInsufficientFunds)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus:        http.StatusBadRequest,
 				ExpectedResponseError: utils.ErrorInsufficientFunds,
 			},
@@ -268,6 +289,7 @@ func TestWithdrawHandler(t *testing.T) {
 				MockSetup: func() {
 					// No need to mock any service since the error occurs before reaching the service layer
 				},
+				MockAssert:            func(t *testing.T) {},
 				ExpectedStatus:        http.StatusBadRequest,
 				ExpectedResponseError: utils.ErrInvalidRequest,
 			},
@@ -310,6 +332,9 @@ func TestTransferHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToWalletNumber, 50.0).
 						Return((*models.Wallet)(nil), utils.RepoErrWalletNotFound)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 			},
 			userID: testUserID,
 		},
@@ -328,6 +353,9 @@ func TestTransferHandler(t *testing.T) {
 					// Mock Transfer with from_user_id failure
 					mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToWalletNumber, 50.0).
 						Return((*models.Wallet)(nil), utils.RepoErrUserNotFound)
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
 				},
 			},
 			userID: testUserID,
@@ -350,8 +378,10 @@ func TestTransferHandler(t *testing.T) {
 							Balance:   100.0,
 							UpdatedAt: now,
 						}, nil)
-					// Mock recording the transaction
-					mockHandlerTestHelper.transactionSerivce.On("RecordTransaction", &testUserID, &testToWalletNumber, "transfer", 50.0).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+					mockHandlerTestHelper.transactionSerivce.AssertExpectations(t)
 				},
 				ExpectedStatus:        http.StatusOK,
 				ExpectedResponseError: nil,
@@ -398,6 +428,9 @@ func TestCreateWalletHandler(t *testing.T) {
 							UpdatedAt:    time.Now(),
 						}, nil)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus:  http.StatusOK,
 				ExpectedMessage: utils.MsgWalletCreated,
 				ExpectedEntity: gin.H{
@@ -418,6 +451,9 @@ func TestCreateWalletHandler(t *testing.T) {
 					mockHandlerTestHelper.walletService.On("CreateWallet", testUserID).
 						Return(nil, utils.ErrWalletAlreadyExists)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
+				},
 				ExpectedStatus:        http.StatusConflict,
 				ExpectedResponseError: utils.ErrWalletAlreadyExists,
 			},
@@ -433,6 +469,9 @@ func TestCreateWalletHandler(t *testing.T) {
 					// Mock unknown error
 					mockHandlerTestHelper.walletService.On("CreateWallet", testUserID).
 						Return(nil, fmt.Errorf("some random error"))
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.walletService.AssertExpectations(t)
 				},
 				ExpectedStatus:        http.StatusInternalServerError,
 				ExpectedResponseError: utils.ErrInternalServerError,
@@ -455,57 +494,6 @@ func TestTransactionHistoryHandler(t *testing.T) {
 	testRequest := testutils.TestHandlerRequest{
 		Method: "GET",
 		URL:    "/wallets/transactions?order=desc&limit=10",
-	}
-
-	transactions := []models.TransactionWithEmails{
-		{
-			Transaction: models.Transaction{
-				ID:               1,
-				FromWalletNumber: nil,
-				ToWalletNumber:   &testToWalletNumber,
-				TransactionType:  "deposit",
-				Amount:           100.0,
-				CreatedAt:        now,
-			},
-			FromEmail: nil,
-			ToEmail:   &testEmail,
-		},
-		{
-			Transaction: models.Transaction{
-				ID:               2,
-				FromWalletNumber: &testFromWalletNumber,
-				ToWalletNumber:   nil,
-				TransactionType:  "withdraw",
-				Amount:           testAmount,
-				CreatedAt:        now,
-			},
-			FromEmail: &testEmail,
-			ToEmail:   nil,
-		},
-		{
-			Transaction: models.Transaction{
-				ID:               3,
-				FromWalletNumber: &testFromWalletNumber,
-				ToWalletNumber:   &testToWalletNumber,
-				TransactionType:  "transfer",
-				Amount:           testAmount,
-				CreatedAt:        now,
-			},
-			FromEmail: &testEmail,
-			ToEmail:   &toTestEmail,
-		},
-		{
-			Transaction: models.Transaction{
-				ID:               4,
-				FromWalletNumber: &testToWalletNumber,
-				ToWalletNumber:   &testFromWalletNumber,
-				TransactionType:  "transfer",
-				Amount:           testAmount,
-				CreatedAt:        now,
-			},
-			FromEmail: &toTestEmail,
-			ToEmail:   &testEmail,
-		},
 	}
 
 	formatTransactions := []models.FormattedTransaction{
@@ -547,7 +535,9 @@ func TestTransactionHistoryHandler(t *testing.T) {
 					// Mock successful transaction history retrieval
 					mockHandlerTestHelper.transactionSerivce.On("GetTransactionHistory", testFromWalletNumber, "desc", 10, 0).
 						Return(formatTransactions, nil)
-					mockHandlerTestHelper.transactionSerivce.On("FormatTransactionResponse", testFromWalletNumber, transactions).Return(formatTransactions)
+				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.transactionSerivce.AssertExpectations(t)
 				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
@@ -570,6 +560,9 @@ func TestTransactionHistoryHandler(t *testing.T) {
 					mockHandlerTestHelper.transactionSerivce.On("GetTransactionHistory", testFromWalletNumber, "desc", 10, 0).
 						Return([]models.FormattedTransaction{}, nil)
 				},
+				MockAssert: func(t *testing.T) {
+					mockHandlerTestHelper.transactionSerivce.AssertExpectations(t)
+				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
 					"wallet_number": testFromWalletNumber,
@@ -589,6 +582,7 @@ func TestTransactionHistoryHandler(t *testing.T) {
 				MockSetup: func() {
 					// No need to mock service for invalid request
 				},
+				MockAssert:            func(t *testing.T) {},
 				ExpectedStatus:        http.StatusBadRequest,
 				ExpectedResponseError: utils.ErrorInvalidLimit,
 			},

@@ -70,6 +70,8 @@ func walletHandlerTestFlow(tc testWalletHandler, t *testing.T) {
 	} else if tc.TestType == "error" {
 		testutils.AssertAPIErrorResponse(t, w, tc.ExpectedResponseError)
 	}
+
+	tc.MockAssert(t)
 }
 
 func setupHandlerRouter() *gin.Engine {
