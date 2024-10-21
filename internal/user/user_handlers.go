@@ -1,13 +1,14 @@
 package user
 
 import (
-	"net/http"
+	"errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 )
 
 // HTTP handler for user registration
@@ -18,25 +19,33 @@ func RegistrationHandler(us UserServiceInterface) gin.HandlerFunc {
 			Password string `json:"password" binding:"required,min=6"`
 		}
 
+		// Validate the request body
 		if err := c.ShouldBindJSON(&request); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-			return
-		}
-
-		user, err := us.RegisterUser(request.Email, request.Password)
-		if err != nil {
-			if err.Error() == "email already in use" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Email already in use"})
+			if err.Error() == "Key: 'Email' Error:Field validation for 'Email' failed" {
+				utils.ErrorResponse(c, utils.ErrInvalidEmailFormat)
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create user"})
+			if err.Error() == "Key: 'Password' Error:Field validation for 'Password' failed" {
+				utils.ErrorResponse(c, utils.ErrPasswordTooShort)
+				return
+			}
+			utils.ErrorResponse(c, utils.ErrInvalidRequest)
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{
-			"message": "User registered successfully",
-			"user":    models.User{ID: user.ID, Email: user.Email},
-		})
+		// Register the user
+		user, err := us.RegisterUser(request.Email, request.Password)
+		if err != nil {
+			if errors.Is(err, utils.ErrEmailAlreadyInUse) {
+				utils.ErrorResponse(c, utils.ErrEmailAlreadyInUse)
+				return
+			}
+			utils.ErrorResponse(c, utils.ErrUserCreationFailed)
+			return
+		}
+
+		// Success response
+		utils.SuccessResponse(c, "User registered successfully", models.User{ID: user.ID, Email: user.Email})
 	}
 }
 
@@ -48,29 +57,30 @@ func LoginHandler(us UserServiceInterface) gin.HandlerFunc {
 			Password string `json:"password" binding:"required"`
 		}
 
+		// Validate the input
 		if err := c.ShouldBindJSON(&request); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			utils.ErrorResponse(c, utils.ErrInvalidRequest)
 			return
 		}
 
 		// Authenticate the user
 		user, err := us.LoginUser(request.Email, request.Password)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			utils.ErrorResponse(c, utils.ErrInvalidCredentials)
 			return
 		}
 
 		// Generate a JWT token
 		token, err := auth.GenerateJWT(user.ID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+			utils.ErrorResponse(c, utils.ErrTokenGenerationFailed)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Login successful",
-			"token":   token,
-			"user":    user,
+		// Success response with token
+		utils.SuccessResponse(c, "Login successful", gin.H{
+			"token": token,
+			"user":  user,
 		})
 	}
 }
@@ -78,27 +88,28 @@ func LoginHandler(us UserServiceInterface) gin.HandlerFunc {
 func LogoutHandler(blacklistService *auth.BlacklistService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
+		// Get the token string from context (set by JWT middleware)
 		tokenString, exists := c.Get("token_string")
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token is required"})
+			utils.ErrorResponse(c, utils.ErrUnauthorized)
 			return
 		}
 
-		// Validate the token presence and ensure it's valid
+		// Get the token from context (set by JWT middleware)
 		token, exists := c.Get("token")
 		if !exists || token == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			utils.ErrorResponse(c, utils.ErrInvalidToken)
 			return
 		}
 
 		// Add the token to the blacklist
 		err := blacklistService.BlacklistToken(tokenString.(string), token.(*jwt.Token))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to blacklist token"})
+			utils.ErrorResponse(c, utils.ErrInternalServerError)
 			return
 		}
 
 		// Return success message
-		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+		utils.SuccessResponse(c, "Logged out successfully", nil)
 	}
 }
