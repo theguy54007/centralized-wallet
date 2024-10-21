@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"centralized-wallet/internal/auth"
+	"centralized-wallet/internal/models"
 	mockAuth "centralized-wallet/tests/mocks/auth"
 	mockRedis "centralized-wallet/tests/mocks/redis"
 	mockTransaction "centralized-wallet/tests/mocks/transaction"
@@ -98,9 +99,35 @@ func setupHandlerRouter() *gin.Engine {
 	return router
 }
 
+func createMockWallet(walletNumber string, userId int) *models.Wallet {
+	return &models.Wallet{
+		UserID:       userId,
+		Balance:      100.0,
+		WalletNumber: walletNumber,
+		UpdatedAt:    now,
+	}
+}
+
 // wallet service test case struct
 type testWalletService struct {
 	testutils.BaseHandlerTestCase
 	userID       int
 	walletNumber string
+	amount       float64
+}
+
+func walletServiceTestInit(tt testWalletService) WalletServiceInterface {
+	setupServiceMock()
+	tt.MockSetup()
+	return NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
+}
+
+func setupServiceMock() {
+	mockServiceTestHelper.walletRepo = new(mockWallet.MockWalletRepository)
+	mockServiceTestHelper.transactionService = new(mockTransaction.MockTransactionService)
+}
+
+var mockServiceTestHelper struct {
+	walletRepo         *mockWallet.MockWalletRepository
+	transactionService *mockTransaction.MockTransactionService
 }

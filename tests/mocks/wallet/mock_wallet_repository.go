@@ -29,16 +29,16 @@ func (m *MockWalletRepository) Begin() (*sql.Tx, error) {
 	return args.Get(0).(*sql.Tx), args.Error(1)
 }
 
-// IsWalletNumberExists mocks the IsWalletNumberExists function
-func (m *MockWalletRepository) IsWalletNumberExists(walletNumber string) (bool, error) {
-	args := m.Called(walletNumber)
-	return args.Bool(0), args.Error(1)
+// mock commit transaction
+func (m *MockWalletRepository) Commit(tx *sql.Tx) error {
+	args := m.Called(tx)
+	return args.Error(0)
 }
 
-// GetWalletBalance mocks the GetWalletBalance function
-func (m *MockWalletRepository) GetWalletBalance(userID int) (float64, error) {
-	args := m.Called(userID)
-	return args.Get(0).(float64), args.Error(1)
+// mock rollback transaction
+func (m *MockWalletRepository) Rollback(tx *sql.Tx) error {
+	args := m.Called(tx)
+	return args.Error(0)
 }
 
 // GetWalletByUserID mocks the GetWalletByUserID function

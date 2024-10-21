@@ -9,9 +9,9 @@ import (
 // WalletRepositoryInterface defines the methods for wallet operations
 type WalletRepositoryInterface interface {
 	Begin() (*sql.Tx, error)
+	Commit(tx *sql.Tx) error
+	Rollback(tx *sql.Tx) error
 	CreateWallet(wallet *models.Wallet) error // Removed transaction
-	IsWalletNumberExists(walletNumber string) (bool, error)
-	GetWalletBalance(userID int) (float64, error)
 	GetWalletByUserID(userID int) (*models.Wallet, error)
 	Deposit(tx *sql.Tx, userID int, amount float64) (*models.Wallet, error)
 	Withdraw(tx *sql.Tx, userID int, amount float64) (*models.Wallet, error)
@@ -47,6 +47,16 @@ func (repo *WalletRepository) Begin() (*sql.Tx, error) {
 	return repo.db.Begin()
 }
 
+// commit tx
+func (repo *WalletRepository) Commit(tx *sql.Tx) error {
+	return tx.Commit()
+}
+
+// rollback tx
+func (repo *WalletRepository) Rollback(tx *sql.Tx) error {
+	return tx.Rollback()
+}
+
 func (repo *WalletRepository) CreateWallet(wallet *models.Wallet) error {
 	query := `INSERT INTO wallets (user_id, balance, wallet_number, created_at, updated_at)
 			  VALUES ($1, $2, $3, $4, $5)`
@@ -59,26 +69,14 @@ func (repo *WalletRepository) GetWalletByUserID(userID int) (*models.Wallet, err
 	query := "SELECT id, user_id, wallet_number, balance, created_at, updated_at FROM wallets WHERE user_id = $1"
 	err := repo.db.QueryRow(query, userID).Scan(&wallet.ID, &wallet.UserID, &wallet.WalletNumber, &wallet.Balance, &wallet.CreatedAt, &wallet.UpdatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, utils.RepoErrWalletNotFound
+		}
 		return nil, err
 	}
 	return &wallet, nil
 }
 
-// GetWalletBalance retrieves the balance for a given user ID
-func (repo *WalletRepository) GetWalletBalance(userID int) (float64, error) {
-	var balance float64
-	query := "SELECT balance FROM wallets WHERE user_id = $1"
-	err := repo.db.QueryRow(query, userID).Scan(&balance)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return 0, utils.RepoErrWalletNotFound
-		}
-		return 0, err
-	}
-	return balance, nil
-}
-
-// Deposit adds an amount to the wallet balance
 // Deposit updates the user's balance and returns the updated Wallet struct
 func (repo *WalletRepository) Deposit(tx *sql.Tx, userID int, amount float64) (*models.Wallet, error) {
 	query := "UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE user_id = $2 RETURNING id, user_id, balance, wallet_number, created_at, updated_at"
@@ -117,17 +115,10 @@ func (repo *WalletRepository) FindByWalletNumber(walletNumber string) (*models.W
 	wallet := &models.Wallet{}
 	err := repo.db.QueryRow(query, walletNumber).Scan(&wallet.ID, &wallet.UserID, &wallet.Balance, &wallet.WalletNumber, &wallet.UpdatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, utils.RepoErrWalletNotFound
+		}
 		return nil, err
 	}
 	return wallet, nil
-}
-
-func (repo *WalletRepository) IsWalletNumberExists(walletNumber string) (bool, error) {
-	var exists bool
-	query := "SELECT EXISTS(SELECT 1 FROM wallets WHERE wallet_number = $1)"
-	err := repo.db.QueryRow(query, walletNumber).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
 }

@@ -2,6 +2,7 @@ package utils
 
 import (
 	// "centralized-wallet/internal/apperrors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,8 +24,13 @@ func SuccessResponse(c *gin.Context, message string, data interface{}) {
 }
 
 func ErrorResponse(c *gin.Context, err *AppError) {
+	// logError(internalErr, err.Message, context)
 	c.JSON(err.Code, APIResponse{
 		Status:  "error",
 		Message: err.Message,
 	})
+}
+
+func logError(err error, message string, context string) {
+	log.Printf("[ERROR] %s: %s, Details: %v", context, message, err)
 }

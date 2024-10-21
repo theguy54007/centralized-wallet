@@ -21,7 +21,7 @@ func BalanceHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		}
 
 		// Fetch balance from the WalletService
-		balance, err := ws.GetBalance(userID.(int))
+		wallet, err := ws.GetWalletByUserID(userID.(int))
 		if err != nil {
 			// Handle specific error cases
 			switch err {
@@ -35,7 +35,11 @@ func BalanceHandler(ws WalletServiceInterface) gin.HandlerFunc {
 		}
 
 		// Respond with balance
-		utils.SuccessResponse(c, utils.MsgBalanceRetrieved, gin.H{"balance": balance})
+		utils.SuccessResponse(c, utils.MsgBalanceRetrieved, gin.H{
+			"wallet_number": wallet.WalletNumber,
+			"balance":       wallet.Balance,
+			"updated_at":    wallet.UpdatedAt, // timestamp of last wallet update
+		})
 	}
 }
 
@@ -154,7 +158,7 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			case utils.RepoErrUserNotFound:
 				utils.ErrorResponse(c, utils.ErrUserNotFound)
 				return
-			case utils.RepoErrToWalletNotFound:
+			case utils.RepoErrWalletNotFound:
 				utils.ErrorResponse(c, utils.ErrWalletNotFound)
 				return
 			case utils.RepoErrInsufficientFunds:

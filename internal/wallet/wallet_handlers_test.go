@@ -32,12 +32,15 @@ func TestBalanceHandler(t *testing.T) {
 				Method:   testRequest.Method,
 				MockSetup: func() {
 					// Mock successful balance retrieval
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
 					mockHandlerTestHelper.walletService.On("GetBalance", testUserID).
-						Return(100.0, nil)
+						Return(mockWallet, nil)
 				},
 				ExpectedStatus: http.StatusOK,
 				ExpectedEntity: gin.H{
-					"balance": 100.0,
+					"wallet_number": testWalletNumber,
+					"balance":       100.0,
+					"updated_at":    now.Format(time.RFC3339Nano),
 				},
 				ExpectedResponseError: nil,
 				ExpectedMessage:       utils.MsgBalanceRetrieved,
@@ -94,8 +97,6 @@ func TestDepositHandler(t *testing.T) {
 		Method: "POST",
 		URL:    "/wallets/deposit",
 	}
-
-	now := time.Now()
 
 	// Define the test cases
 	testCases := []testWalletHandler{
@@ -203,7 +204,7 @@ func TestWithdrawHandler(t *testing.T) {
 		Method: "POST",
 		URL:    "/wallets/withdraw",
 	}
-	now := time.Now()
+
 	// Define the test cases
 	testCases := []testWalletHandler{
 		{
@@ -345,7 +346,7 @@ func TestTransferHandler(t *testing.T) {
 				MockSetup: func() {
 					// Mock Transfer with user existence failure
 					mockHandlerTestHelper.walletService.On("Transfer", testUserID, testToWalletNumber, 50.0).
-						Return((*models.Wallet)(nil), utils.RepoErrToWalletNotFound)
+						Return((*models.Wallet)(nil), utils.RepoErrWalletNotFound)
 				},
 			},
 			userID: testUserID,

@@ -1,246 +1,555 @@
 package wallet
 
 import (
-	"centralized-wallet/internal/apperrors"
 	"centralized-wallet/internal/models"
-	mockTransaction "centralized-wallet/tests/mocks/transaction"
-	mockWallet "centralized-wallet/tests/mocks/wallet"
-	"errors"
+	"centralized-wallet/internal/utils"
+	"centralized-wallet/tests/testutils"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-var mockServiceTestHelper struct {
-	walletRepo         *mockWallet.MockWalletRepository
-	transactionService *mockTransaction.MockTransactionService
-}
-
-func setupServiceMock() {
-	mockServiceTestHelper.walletRepo = new(mockWallet.MockWalletRepository)
-	mockServiceTestHelper.transactionService = new(mockTransaction.MockTransactionService)
-}
-
-// Test GetBalance
-func TestGetBalance(t *testing.T) {
-	setupServiceMock()
-	mockServiceTestHelper.walletRepo.On("GetWalletBalance", 1).Return(100.0, nil)
-
-	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
-	balance, err := walletService.GetBalance(1)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 100.0, balance)
-	mockServiceTestHelper.walletRepo.AssertExpectations(t)
-}
-
 // Test Deposit
-func TestDeposit(t *testing.T) {
-	setupServiceMock()
+func TestDepositService(t *testing.T) {
 
-	mockWallet := &models.Wallet{
-		UserID:    testUserID,
-		Balance:   150.0, // Expected balance after the deposit
-		UpdatedAt: time.Now(),
-	}
-
-	// Set up the mock for Deposit
-	mockServiceTestHelper.walletRepo.On("Deposit", testUserID, 50.0).Return(mockWallet, nil)
-
-	// Set up the mock for RecordTransaction
-	mockServiceTestHelper.transactionService.On("RecordTransaction", (*string)(nil), mock.AnythingOfType("*string"), "deposit", 50.0).Return(nil)
-
-	// Create the wallet service
-	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
-
-	// Call the Deposit method and check the response
-	wallet, err := walletService.Deposit(testUserID, 50.0)
-	assert.NoError(t, err)
-	assert.Equal(t, 150.0, wallet.Balance) // Check the updated balance
-
-	// Verify the expectations
-	mockServiceTestHelper.walletRepo.AssertExpectations(t)
-	mockServiceTestHelper.transactionService.AssertExpectations(t)
-}
-
-func TestWithdraw(t *testing.T) {
-	// Define the test cases
-	tests := []struct {
-		name                        string
-		amount                      float64
-		mockWithdrawResult          *models.Wallet
-		mockWithdrawError           error
-		expectError                 bool
-		expectedErrorMessage        string
-		mockRecordTransactionCalled bool
-	}{
+	testCases := []testWalletService{
 		{
-			name:                        "SufficientFunds",
-			amount:                      50.0,
-			mockWithdrawResult:          &models.Wallet{UserID: testUserID, Balance: 100.0, UpdatedAt: time.Now()},
-			mockWithdrawError:           nil,
-			expectError:                 false,
-			expectedErrorMessage:        "",
-			mockRecordTransactionCalled: true,
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "successful deposit",
+				TestType:      "success",
+				ExpectedError: nil,
+				MockSetup: func() {
+					// Mock user existence check
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(true, nil)
+
+					// Mock transaction begin
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+
+					// Mock deposit
+					mockWallet := &models.Wallet{
+						UserID:       testUserID,
+						WalletNumber: testWalletNumber,
+						Balance:      150.0, // After deposit
+						UpdatedAt:    now,
+					}
+					mockServiceTestHelper.walletRepo.On("Deposit", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockWallet, nil)
+
+					// Mock recording the transaction
+					mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*sql.Tx"), (*string)(nil), mock.Anything, "deposit", 50.0).Return(nil)
+
+					// // Mock commit
+					mockServiceTestHelper.walletRepo.On("Commit", mock.AnythingOfType("*sql.Tx")).Return(nil)
+
+					// // Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+					mockServiceTestHelper.transactionService.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
 		},
 		{
-			name:                        "InsufficientFunds",
-			amount:                      100.0,
-			mockWithdrawResult:          &models.Wallet{},
-			mockWithdrawError:           errors.New("insufficient funds"),
-			expectError:                 true,
-			expectedErrorMessage:        "insufficient funds",
-			mockRecordTransactionCalled: false,
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "wallet not found",
+				TestType:      "error",
+				ExpectedError: utils.RepoErrWalletNotFound,
+				MockSetup: func() {
+					// Mock user does not exist
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error checking user existence",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					// Mock error when checking if the user exists
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, utils.ErrDatabaseError)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error during deposit",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					// Mock user existence check
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(true, nil)
+
+					// Mock transaction begin
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+
+					// Mock deposit returning an error
+					mockServiceTestHelper.walletRepo.On("Deposit", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(nil, utils.ErrDatabaseError)
+
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error recording transaction",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					// Mock user existence check
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(true, nil)
+
+					// Mock transaction begin
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+
+					// Mock deposit
+					mockWallet := &models.Wallet{
+						UserID:       testUserID,
+						WalletNumber: testWalletNumber,
+						Balance:      150.0, // After deposit
+						UpdatedAt:    now,
+					}
+					mockServiceTestHelper.walletRepo.On("Deposit", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockWallet, nil)
+
+					// Mock recording the transaction returning an error
+					mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*sql.Tx"), (*string)(nil), &mockWallet.WalletNumber, "deposit", 50.0).Return(utils.ErrDatabaseError)
+
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+					mockServiceTestHelper.transactionService.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock services and helpers
-			setupServiceMock()
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
 
-			// Mock the Withdraw method to return the mock result and error
-			mockServiceTestHelper.walletRepo.On("Withdraw", testUserID, tt.amount).Return(tt.mockWithdrawResult, tt.mockWithdrawError)
+			walletService := walletServiceTestInit(tc)
+			wallet, err := walletService.Deposit(tc.userID, 50.0)
 
-			// Only set up the transaction recording mock if it's expected to be called
-			if tt.mockRecordTransactionCalled {
-				mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*string"), (*string)(nil), "withdraw", tt.amount).Return(nil)
-			}
-
-			// Create the wallet service using the mocked services
-			walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
-
-			// Call the Withdraw method
-			result, err := walletService.Withdraw(testUserID, tt.amount)
-
-			// Check the error expectation
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedErrorMessage, err.Error())
-			} else {
+			if tc.TestType == "success" {
 				assert.NoError(t, err)
-
-				// Check the returned wallet result
-				assert.Equal(t, tt.mockWithdrawResult.UserID, result.UserID)
-				assert.Equal(t, tt.mockWithdrawResult.Balance, result.Balance)
-			}
-
-			// Verify that the mock expectations are met
-			mockServiceTestHelper.walletRepo.AssertExpectations(t)
-			if tt.mockRecordTransactionCalled {
-				mockServiceTestHelper.transactionService.AssertExpectations(t)
+				assert.NotNil(t, wallet)
 			} else {
-				mockServiceTestHelper.transactionService.AssertNotCalled(t, "RecordTransaction", mock.Anything, mock.Anything, mock.Anything)
+				assert.EqualError(t, err, tc.ExpectedError.Error())
+				assert.Nil(t, wallet)
 			}
+
+			tc.MockAssert(t)
 		})
 	}
 }
 
-func TestTransfer(t *testing.T) {
-	setupServiceMock()
+func TestWithdrawService(t *testing.T) {
 
-	// Define the mock wallets for both users after the transfer
-	mockFromWallet := &models.Wallet{
-		UserID:    testUserID,
-		Balance:   50.0,
-		UpdatedAt: time.Now(),
+	testCases := []testWalletService{
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "successful withdrawal",
+				TestType:      "success",
+				ExpectedError: nil,
+				MockSetup: func() {
+					// Mock getting wallet balance successfully
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+					// Mock withdrawal of amount
+
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+					mockServiceTestHelper.walletRepo.On("Withdraw", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockWallet, nil)
+					// Mock recording the transaction
+					mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*sql.Tx"), mock.Anything, (*string)(nil), "withdraw", 50.0).Return(nil)
+					mockServiceTestHelper.walletRepo.On("Commit", mock.AnythingOfType("*sql.Tx")).Return(nil)
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+					mockServiceTestHelper.transactionService.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "insufficient funds",
+				TestType:      "error",
+				ExpectedError: utils.RepoErrInsufficientFunds,
+				MockSetup: func() {
+					// Mock balance less than the amount being withdrawn
+					mmockWallet := createMockWallet(testWalletNumber, testUserID)
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mmockWallet, nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 150,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error getting wallet balance",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					// Mock error when getting wallet balance
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(nil, utils.ErrDatabaseError)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error during withdrawal",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+					// Mock getting wallet balance successfully
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+					// Mock withdrawal returning an error
+					mockServiceTestHelper.walletRepo.On("Withdraw", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(nil, utils.ErrDatabaseError)
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error recording transaction",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+
+					// Mock getting wallet balance successfully
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+					// Mock withdrawal of amount
+					mockServiceTestHelper.walletRepo.On("Withdraw", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockWallet, nil)
+					// Mock recording the transaction returning an error
+					mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*sql.Tx"), &mockWallet.WalletNumber, (*string)(nil), "withdraw", 50.0).Return(utils.ErrDatabaseError)
+
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+					mockServiceTestHelper.transactionService.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50,
+		},
 	}
 
-	// Mock the Transfer method in the wallet repository to return the expected wallets
-	mockServiceTestHelper.walletRepo.On("Transfer", testUserID, testToWalletNumber, 50.0).Return(mockFromWallet, nil)
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			walletService := walletServiceTestInit(tt)
+			wallet, err := walletService.Withdraw(tt.userID, tt.amount) // Example amount to withdraw
 
-	mockServiceTestHelper.walletRepo.On("FindByWalletNumber", testToWalletNumber).Return(mockFromWallet, nil)
-	// Mock the transaction recording
-	mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*string"), mock.AnythingOfType("*string"), "transfer", 50.0).Return(nil)
-
-	// Create the wallet service
-	walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
-
-	// Call the Transfer method
-	fromWallet, err := walletService.Transfer(testUserID, testToWalletNumber, 50.0)
-
-	// Check no errors
-	assert.NoError(t, err)
-
-	// Assert the returned wallet has the expected values
-	assert.Equal(t, mockFromWallet.UserID, fromWallet.UserID)
-	assert.Equal(t, mockFromWallet.Balance, fromWallet.Balance)
-
-	// Verify that expectations are met
-	mockServiceTestHelper.walletRepo.AssertExpectations(t)
-	mockServiceTestHelper.transactionService.AssertExpectations(t)
-}
-
-func TestCreateWallet(t *testing.T) {
-
-	// Define test cases in a table-driven format
-	tests := []struct {
-		name                 string
-		userExists           bool
-		userExistsError      error
-		repoError            error
-		expectedError        error
-		expectedWalletNumber string
-	}{
-		{
-			name:                 "successful wallet creation",
-			userExists:           false,
-			userExistsError:      nil,
-			repoError:            nil,
-			expectedError:        nil,
-			expectedWalletNumber: "WAL-12345-20211020000000-ABC123",
-		},
-		{
-			name:            "user already has a wallet",
-			userExists:      true,
-			userExistsError: nil,
-			repoError:       nil,
-			expectedError:   apperrors.ErrWalletAlreadyExists,
-		},
-		{
-			name:            "error checking if user exists",
-			userExists:      false,
-			userExistsError: errors.New("user service failure"),
-			repoError:       nil,
-			expectedError:   errors.New("failed to check if user exists: user service failure"),
-		},
-		{
-			name:            "error creating wallet",
-			userExists:      false,
-			userExistsError: nil,
-			repoError:       errors.New("database error"),
-			expectedError:   errors.New("database error"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setupServiceMock()
-			// Mock UserExists behavior based on the test case
-			mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(tt.userExists, tt.userExistsError)
-
-			// Only mock the CreateWallet method if user doesn't already exist
-			if !tt.userExists && tt.userExistsError == nil {
-				// Mock the CreateWallet method
-				mockServiceTestHelper.walletRepo.On("CreateWallet", mock.Anything).Return(tt.repoError)
-			}
-			walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
-			// Call CreateWallet
-			wallet, err := walletService.CreateWallet(12345)
-
-			// Assert based on the expected error and wallet number
-			if tt.expectedError != nil {
-				assert.EqualError(t, err, tt.expectedError.Error())
-				assert.Nil(t, wallet)
-			} else {
+			if tt.TestType == "success" {
 				assert.NoError(t, err)
 				assert.NotNil(t, wallet)
+				assert.Equal(t, tt.userID, wallet.UserID)
+			} else {
+				assert.EqualError(t, err, tt.ExpectedError.Error())
+				assert.Nil(t, wallet)
 			}
+			tt.MockAssert(t)
+		})
+	}
+}
 
-			// Assert that the mock expectations were met
-			mockServiceTestHelper.walletRepo.AssertExpectations(t)
+func TestTransferService(t *testing.T) {
+
+	testCases := []testWalletService{
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "successful transfer",
+				TestType:      "success",
+				ExpectedError: nil,
+				MockSetup: func() {
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					// Mock getting wallet balance successfully
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+
+					// Mock withdrawal of amount from the sender
+					mockFromWallet := createMockWallet(testWalletNumber, testUserID)
+
+					// Mock the recipient wallet details
+					mockToWallet := createMockWallet(testToWalletNumber, testToUserID)
+
+					// Begin transaction
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+
+					// Mock withdrawal from sender's wallet
+					mockServiceTestHelper.walletRepo.On("Withdraw", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockFromWallet, nil)
+
+					// Mock finding recipient wallet
+					mockServiceTestHelper.walletRepo.On("FindByWalletNumber", mock.Anything).Return(mockToWallet, nil)
+
+					// Mock deposit into recipient's wallet
+					mockServiceTestHelper.walletRepo.On("Deposit", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockToWallet, nil)
+
+					// Mock recording the transaction
+					mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*sql.Tx"), &mockFromWallet.WalletNumber, &mockToWallet.WalletNumber, "transfer", 50.0).Return(nil)
+
+					// Mock commit
+					mockServiceTestHelper.walletRepo.On("Commit", mock.AnythingOfType("*sql.Tx")).Return(nil)
+
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+					mockServiceTestHelper.transactionService.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50.0,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "insufficient funds",
+				TestType:      "error",
+				ExpectedError: utils.RepoErrInsufficientFunds,
+				MockSetup: func() {
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					// Mock balance less than the amount being transferred
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 150,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error during withdrawal",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					// Mock transaction begin
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					// Mock getting wallet balance successfully
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+
+					mockToWallet := createMockWallet(testToWalletNumber, testToUserID)
+
+					mockServiceTestHelper.walletRepo.On("FindByWalletNumber", mock.Anything).Return(mockToWallet, nil)
+					// Mock withdrawal returning an error
+					mockServiceTestHelper.walletRepo.On("Withdraw", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(nil, utils.ErrDatabaseError)
+
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50.0,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error finding recipient wallet",
+				TestType:      "error",
+				ExpectedError: utils.RepoErrWalletNotFound,
+				MockSetup: func() {
+					// Mock getting wallet balance successfully
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+
+					// Mock error when finding recipient's wallet
+					mockServiceTestHelper.walletRepo.On("FindByWalletNumber", mock.Anything).Return(nil, utils.RepoErrWalletNotFound)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50.0,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error recording transaction",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					// Mock transaction begin
+					mockServiceTestHelper.walletRepo.On("Begin").Return(nil, nil)
+
+					mockWallet := createMockWallet(testWalletNumber, testUserID)
+					// Mock getting wallet balance successfully
+					mockServiceTestHelper.walletRepo.On("GetWalletByUserID", mock.Anything).Return(mockWallet, nil)
+
+					// Mock withdrawal of amount from sender
+					mockFromWallet := createMockWallet(testWalletNumber, testUserID)
+					mockServiceTestHelper.walletRepo.On("Withdraw", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockFromWallet, nil)
+
+					// Mock finding recipient wallet
+					mockToWallet := &models.Wallet{
+						UserID:       testToUserID,
+						WalletNumber: testToWalletNumber,
+						Balance:      150.0, // After deposit
+						UpdatedAt:    now,
+					}
+					mockServiceTestHelper.walletRepo.On("FindByWalletNumber", mock.Anything).Return(mockToWallet, nil)
+
+					// Mock deposit into recipient's wallet
+					mockServiceTestHelper.walletRepo.On("Deposit", mock.AnythingOfType("*sql.Tx"), mock.Anything, mock.Anything).Return(mockToWallet, nil)
+
+					// Mock recording the transaction returning an error
+					mockServiceTestHelper.transactionService.On("RecordTransaction", mock.AnythingOfType("*sql.Tx"), &mockFromWallet.WalletNumber, &mockToWallet.WalletNumber, "transfer", 50.0).Return(utils.ErrDatabaseError)
+
+					// Mock rollback
+					mockServiceTestHelper.walletRepo.On("Rollback", mock.AnythingOfType("*sql.Tx")).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+					mockServiceTestHelper.transactionService.AssertExpectations(t)
+				},
+			},
+			userID: testUserID,
+			amount: 50.0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			setupServiceMock()
+			tc.MockSetup()
+			walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
+			_, err := walletService.Transfer(tc.userID, tc.walletNumber, tc.amount)
+			if tc.TestType == "error" {
+				assert.ErrorIs(t, err, tc.ExpectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+			tc.MockAssert(t)
+		})
+	}
+}
+
+func TestCreateWalletService(t *testing.T) {
+
+	testCases := []testWalletService{
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "successful wallet creation",
+				TestType:      "success",
+				ExpectedError: nil,
+				MockSetup: func() {
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, nil)
+					mockServiceTestHelper.walletRepo.On("CreateWallet", mock.Anything).Return(nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID:       testUserID,
+			walletNumber: testWalletNumber,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "user already has a wallet",
+				TestType:      "error",
+				ExpectedError: utils.ErrWalletAlreadyExists,
+				MockSetup: func() {
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(true, nil)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID:       testUserID,
+			walletNumber: testWalletNumber,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error checking if user exists",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, utils.ErrDatabaseError)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID:       testUserID,
+			walletNumber: testWalletNumber,
+		},
+		{
+			BaseHandlerTestCase: testutils.BaseHandlerTestCase{
+				Name:          "error creating wallet",
+				TestType:      "error",
+				ExpectedError: utils.ErrDatabaseError,
+				MockSetup: func() {
+					mockServiceTestHelper.walletRepo.On("UserExists", mock.Anything).Return(false, nil)
+					mockServiceTestHelper.walletRepo.On("CreateWallet", mock.Anything).Return(utils.ErrDatabaseError)
+				},
+				MockAssert: func(t *testing.T) {
+					mockServiceTestHelper.walletRepo.AssertExpectations(t)
+				},
+			},
+			userID:       testUserID,
+			walletNumber: testWalletNumber,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.Name, func(t *testing.T) {
+			setupServiceMock()
+			tt.MockSetup()
+			walletService := NewWalletService(mockServiceTestHelper.walletRepo, mockServiceTestHelper.transactionService)
+			wallet, err := walletService.CreateWallet(tt.userID)
+
+			if tt.TestType == "success" {
+				assert.NoError(t, err)
+				assert.NotNil(t, *wallet)
+				assert.Equal(t, tt.userID, wallet.UserID)
+			} else {
+				assert.EqualError(t, err, tt.ExpectedError.Error())
+				assert.Nil(t, wallet)
+			}
+			tt.MockAssert(t)
 		})
 	}
 }
