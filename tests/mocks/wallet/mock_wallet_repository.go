@@ -2,6 +2,7 @@ package mock_wallet
 
 import (
 	"centralized-wallet/internal/models"
+	"database/sql"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -19,16 +20,25 @@ func (m *MockWalletRepository) CreateWallet(wallet *models.Wallet) error {
 	return args.Error(0)
 }
 
-// IsWalletNumberExists mocks the IsWalletNumberExists function
-func (m *MockWalletRepository) IsWalletNumberExists(walletNumber string) (bool, error) {
-	args := m.Called(walletNumber)
-	return args.Bool(0), args.Error(1)
+// mock begin transaction
+func (m *MockWalletRepository) Begin() (*sql.Tx, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*sql.Tx), args.Error(1)
 }
 
-// GetWalletBalance mocks the GetWalletBalance function
-func (m *MockWalletRepository) GetWalletBalance(userID int) (float64, error) {
-	args := m.Called(userID)
-	return args.Get(0).(float64), args.Error(1)
+// mock commit transaction
+func (m *MockWalletRepository) Commit(tx *sql.Tx) error {
+	args := m.Called(tx)
+	return args.Error(0)
+}
+
+// mock rollback transaction
+func (m *MockWalletRepository) Rollback(tx *sql.Tx) error {
+	args := m.Called(tx)
+	return args.Error(0)
 }
 
 // GetWalletByUserID mocks the GetWalletByUserID function
@@ -41,8 +51,8 @@ func (m *MockWalletRepository) GetWalletByUserID(userID int) (*models.Wallet, er
 }
 
 // Deposit mocks the Deposit function
-func (m *MockWalletRepository) Deposit(userID int, amount float64) (*models.Wallet, error) {
-	args := m.Called(userID, amount)
+func (m *MockWalletRepository) Deposit(tx *sql.Tx, userID int, amount float64) (*models.Wallet, error) {
+	args := m.Called(tx, userID, amount)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -50,17 +60,8 @@ func (m *MockWalletRepository) Deposit(userID int, amount float64) (*models.Wall
 }
 
 // Withdraw mocks the Withdraw function
-func (m *MockWalletRepository) Withdraw(userID int, amount float64) (*models.Wallet, error) {
-	args := m.Called(userID, amount)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.Wallet), args.Error(1)
-}
-
-// Transfer mocks the Transfer function
-func (m *MockWalletRepository) Transfer(fromUserID int, toWalletNumber string, amount float64) (*models.Wallet, error) {
-	args := m.Called(fromUserID, toWalletNumber, amount)
+func (m *MockWalletRepository) Withdraw(tx *sql.Tx, userID int, amount float64) (*models.Wallet, error) {
+	args := m.Called(tx, userID, amount)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

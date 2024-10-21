@@ -2,6 +2,7 @@ package mock_transaction
 
 import (
 	"centralized-wallet/internal/models"
+	"database/sql"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -11,7 +12,7 @@ type MockTransactionRepository struct {
 }
 
 // Mock CreateTransaction method
-func (m *MockTransactionRepository) CreateTransaction(transaction *models.Transaction) error {
+func (m *MockTransactionRepository) CreateTransaction(tx *sql.Tx, transaction *models.Transaction) error {
 	args := m.Called(transaction)
 	return args.Error(0)
 }

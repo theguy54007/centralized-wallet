@@ -6,7 +6,7 @@ import (
 )
 
 type TransactionRepositoryInterface interface {
-	CreateTransaction(transaction *models.Transaction) error
+	CreateTransaction(tx *sql.Tx, transaction *models.Transaction) error
 	GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error)
 }
 type TransactionRepository struct {
@@ -21,11 +21,11 @@ func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 }
 
 // CreateTransaction inserts a new transaction with wallet numbers.
-func (r *TransactionRepository) CreateTransaction(transaction *models.Transaction) error {
+func (r *TransactionRepository) CreateTransaction(tx *sql.Tx, transaction *models.Transaction) error {
 	query := `INSERT INTO transactions (from_wallet_number, to_wallet_number, transaction_type, amount, created_at)
 			  VALUES ($1, $2, $3, $4, $5)`
 
-	_, err := r.db.Exec(
+	_, err := tx.Exec(
 		query,
 		transaction.FromWalletNumber,
 		transaction.ToWalletNumber,

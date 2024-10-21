@@ -2,12 +2,13 @@ package transaction
 
 import (
 	"centralized-wallet/internal/models"
+	"database/sql"
 	"fmt"
 	"time"
 )
 
 type TransactionServiceInterface interface {
-	RecordTransaction(fromWalletNumber, toWalletNumber *string, transactionType string, amount float64) error
+	RecordTransaction(tx *sql.Tx, fromWalletNumber *string, toWalletNumber *string, transactionType string, amount float64) error
 	GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error)
 }
 
@@ -20,7 +21,7 @@ func NewTransactionService(repo TransactionRepositoryInterface) *TransactionServ
 }
 
 // RecordTransaction records a transaction
-func (ts *TransactionService) RecordTransaction(fromWalletNumber, toWalletNumber *string, transactionType string, amount float64) error {
+func (ts *TransactionService) RecordTransaction(tx *sql.Tx, fromWalletNumber, toWalletNumber *string, transactionType string, amount float64) error {
 	// Check if both fromWalletNumber and toWalletNumber are nil or empty
 	if (fromWalletNumber == nil || *fromWalletNumber == "") && (toWalletNumber == nil || *toWalletNumber == "") {
 		return fmt.Errorf("either fromWalletNumber or toWalletNumber must be provided")
@@ -36,7 +37,7 @@ func (ts *TransactionService) RecordTransaction(fromWalletNumber, toWalletNumber
 	}
 
 	// Save the transaction using the repository
-	return ts.repo.CreateTransaction(&transaction)
+	return ts.repo.CreateTransaction(tx, &transaction)
 }
 
 // GetTransactionHistory retrieves the transaction history for a specific wallet number.

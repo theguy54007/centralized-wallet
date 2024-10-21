@@ -1,9 +1,9 @@
 package auth
 
 import (
-	// "centralized-wallet/internal/auth"
 	"errors"
-	"net/http"
+
+	"centralized-wallet/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -13,7 +13,7 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
 		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token is required"})
+			utils.ErrorResponse(c, utils.ErrUnauthorized)
 			c.Abort()
 			return
 		}
@@ -22,7 +22,7 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
 			tokenString = tokenString[7:]
 		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
+			utils.ErrorResponse(c, utils.ErrInvalidToken)
 			c.Abort()
 			return
 		}
@@ -30,12 +30,12 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		// Check if the token is blacklisted
 		isBlacklisted, err := blacklistService.IsTokenBlacklisted(tokenString)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check blacklist"})
+			utils.ErrorResponse(c, utils.ErrInternalServerError)
 			c.Abort()
 			return
 		}
 		if isBlacklisted {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is blacklisted"})
+			utils.ErrorResponse(c, utils.ErrInvalidToken) // Or custom error for blacklisted token
 			c.Abort()
 			return
 		}
@@ -44,14 +44,15 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		token, err := ValidateJWT(tokenString)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token expired"})
+				utils.ErrorResponse(c, utils.ErrTokenExpired)
 			} else {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+				utils.ErrorResponse(c, utils.ErrInvalidToken)
 			}
 			c.Abort()
 			return
 		}
 
+		// Add token info to context
 		c.Set("token", token)
 		c.Set("token_string", tokenString)
 
@@ -60,11 +61,12 @@ func JWTMiddleware(blacklistService BlacklistServiceInterface) gin.HandlerFunc {
 		if ok && token.Valid {
 			c.Set("user_id", int(claims["user_id"].(float64)))
 		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			utils.ErrorResponse(c, utils.ErrInvalidToken)
 			c.Abort()
 			return
 		}
 
+		// Continue to next handler
 		c.Next()
 	}
 }

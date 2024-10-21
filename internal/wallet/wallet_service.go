@@ -1,17 +1,20 @@
 package wallet
 
 import (
-	"centralized-wallet/internal/apperrors"
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/transaction"
+	"centralized-wallet/internal/utils"
+	"database/sql"
 	"fmt"
+	"log"
+
 	"math/rand"
 	"time"
 )
 
 // WalletServiceInterface defines the methods for the WalletService
 type WalletServiceInterface interface {
-	GetBalance(userID int) (float64, error)
+	// GetBalance(userID int) (float64, error)
 	UserExists(userID int) (bool, error)
 	Deposit(userID int, amount float64) (*models.Wallet, error)
 	Withdraw(userID int, amount float64) (*models.Wallet, error)
@@ -41,14 +44,14 @@ func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
 	userExists, err := ws.UserExists(userID)
 	if err != nil {
 		// Log the error if necessary and return it
-		return nil, fmt.Errorf("failed to check if user exists: %w", err) // Wrap the error for better context
+		return nil, utils.ErrDatabaseError // Wrap the error for better context
 	}
 	// if user already exists, return error
 	if userExists {
-		return nil, apperrors.ErrWalletAlreadyExists
+		return nil, utils.ErrWalletAlreadyExists
 	}
 
-	walletNumber := ws.GenerateUniqueWalletNumber(userID)
+	walletNumber := generateUniqueWalletNumber(userID)
 	wallet := &models.Wallet{
 		UserID:       userID,
 		Balance:      0.0,
@@ -67,9 +70,9 @@ func (ws *WalletService) CreateWallet(userID int) (*models.Wallet, error) {
 }
 
 // GetBalance retrieves the balance of a user
-func (ws *WalletService) GetBalance(userID int) (float64, error) {
-	return ws.walletRepo.GetWalletBalance(userID)
-}
+// func (ws *WalletService) GetBalance(userID int) (*models.Wallet, error) {
+// 	return ws.walletRepo.GetWalletByUserID(userID)
+// }
 
 func (ws *WalletService) UserExists(userID int) (bool, error) {
 	return ws.walletRepo.UserExists(userID)
@@ -77,14 +80,36 @@ func (ws *WalletService) UserExists(userID int) (bool, error) {
 
 // Deposit adds money to the user's wallet and records the transaction, returning balance and timestamp
 func (ws *WalletService) Deposit(userID int, amount float64) (*models.Wallet, error) {
+	exists, err := ws.walletRepo.UserExists(userID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		// Return a specific error if the wallet is not found
+		return nil, utils.RepoErrWalletNotFound
+	}
+
+	tx, err := ws.walletRepo.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	// Rollback the transaction if an error occurs
+	defer ws.rollBackTxWhenErr(tx, &err)
+
 	// Perform the deposit and get the updated Wallet struct
-	wallet, err := ws.walletRepo.Deposit(userID, amount)
+	wallet, err := ws.walletRepo.Deposit(tx, userID, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	// Record the deposit transaction
-	err = ws.transactionService.RecordTransaction(nil, &wallet.WalletNumber, "deposit", amount)
+	err = ws.transactionService.RecordTransaction(tx, nil, &wallet.WalletNumber, "deposit", amount)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ws.walletRepo.Commit(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -92,17 +117,37 @@ func (ws *WalletService) Deposit(userID int, amount float64) (*models.Wallet, er
 	return wallet, nil
 }
 
-// Withdraw subtracts money from the user's wallet and records the transaction
 // Withdraw subtracts money from the user's wallet, records the transaction, and returns updated balance and updated_at time
 func (ws *WalletService) Withdraw(userID int, amount float64) (*models.Wallet, error) {
+	checkWallet, err := ws.walletRepo.GetWalletByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if checkWallet.Balance < amount {
+		return nil, utils.RepoErrInsufficientFunds
+	}
+
+	tx, err := ws.walletRepo.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer ws.rollBackTxWhenErr(tx, &err)
+
 	// Withdraw and get the updated wallet data
-	wallet, err := ws.walletRepo.Withdraw(userID, amount)
+	wallet, err := ws.walletRepo.Withdraw(tx, userID, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	// Record the withdrawal transaction
-	err = ws.transactionService.RecordTransaction(&wallet.WalletNumber, nil, "withdraw", amount)
+	err = ws.transactionService.RecordTransaction(tx, &wallet.WalletNumber, nil, "withdraw", amount)
+	if err != nil {
+		return nil, err
+	}
+
+	err = ws.walletRepo.Commit(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -113,28 +158,60 @@ func (ws *WalletService) Withdraw(userID int, amount float64) (*models.Wallet, e
 
 // Transfer subtracts from one user and adds to another, returning the updated Wallet for the from_user
 func (ws *WalletService) Transfer(fromUserID int, toWalletNumber string, amount float64) (*models.Wallet, error) {
-	// Perform the transfer using the wallet number
-	wallet, err := ws.walletRepo.Transfer(fromUserID, toWalletNumber, amount)
+
+	checkWallet, err := ws.walletRepo.GetWalletByUserID(fromUserID)
 	if err != nil {
-		return wallet, err
+		log.Printf("Error getting wallet balance: %v", err)
+		return nil, err
 	}
 
-	// Record the transfer transaction using user IDs (still retrieving the user ID for both wallets)
+	if checkWallet.Balance < amount {
+		return nil, utils.RepoErrInsufficientFunds
+	}
+
 	toWallet, err := ws.walletRepo.FindByWalletNumber(toWalletNumber)
 	if err != nil {
-		return wallet, err
+		return nil, err
+	}
+
+	tx, err := ws.walletRepo.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	defer ws.rollBackTxWhenErr(tx, &err)
+
+	fromWallet, err := ws.walletRepo.Withdraw(tx, fromUserID, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	toWallet, err = ws.walletRepo.Deposit(tx, toWallet.UserID, amount)
+	if err != nil {
+		return nil, err
 	}
 
 	// Record the transfer transaction
-	err = ws.transactionService.RecordTransaction(&wallet.WalletNumber, &toWallet.WalletNumber, "transfer", amount)
+	err = ws.transactionService.RecordTransaction(tx, &fromWallet.WalletNumber, &toWallet.WalletNumber, "transfer", amount)
 	if err != nil {
-		return wallet, err
+		return nil, err
 	}
 
-	return wallet, nil
+	err = ws.walletRepo.Commit(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return fromWallet, nil
 }
 
-func (ws *WalletService) GenerateUniqueWalletNumber(userID int) string {
+func (ws *WalletService) rollBackTxWhenErr(tx *sql.Tx, err *error) {
+	if err != nil {
+		ws.walletRepo.Rollback(tx)
+	}
+}
+
+func generateUniqueWalletNumber(userID int) string {
 	// Get the current timestamp in the format YYYYMMDDHHMMSS
 	timestamp := time.Now().Format("20060102150405")
 

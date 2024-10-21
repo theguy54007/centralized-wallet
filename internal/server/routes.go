@@ -6,6 +6,7 @@ import (
 	"centralized-wallet/internal/auth"
 	"centralized-wallet/internal/transaction"
 	"centralized-wallet/internal/user"
+	"centralized-wallet/internal/utils"
 	"centralized-wallet/internal/wallet"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 // RegisterRoutes initializes all routes for the application
 func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
+
+	r.Use(utils.ErrorMiddlewareHandler()) // Apply error middleware to all routes
 
 	// Health check route
 	r.GET("/db-health", s.dbHealthHandler)
