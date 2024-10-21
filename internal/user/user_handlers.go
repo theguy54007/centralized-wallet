@@ -45,7 +45,7 @@ func RegistrationHandler(us UserServiceInterface) gin.HandlerFunc {
 		}
 
 		// Success response
-		utils.SuccessResponse(c, "User registered successfully", models.User{ID: user.ID, Email: user.Email})
+		utils.SuccessResponse(c, utils.MsgUserRegistered, models.User{ID: user.ID, Email: user.Email})
 	}
 }
 

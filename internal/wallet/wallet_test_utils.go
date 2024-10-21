@@ -49,22 +49,18 @@ func setupHandlerMock() {
 	mockHandlerTestHelper.redisClient.On("Get", mock.Anything, "user:1:wallet_number").Return(testFromWalletNumber, nil)
 }
 
-// Helper function to generate a JWT token for the test
 func generateJWTForTest(userID int) string {
-	token, _ := auth.TestHelperGenerateJWT(userID)
+	token, _ := auth.GenerateJWT(userID)
 	return token
 }
 
 func walletHandlerTestFlow(tc testWalletHandler, t *testing.T) {
 	router := setupHandlerRouter()
 
-	// Setup mocks for the specific test case
 	tc.MockSetup()
 
-	// Generate JWT for the sender (from_user_id)
 	token := generateJWTForTest(tc.userID)
 
-	// Execute the request using the reusable function
 	w := testutils.ExecuteRequest(router, tc.Method, tc.URL, tc.Body, token)
 
 	// Assert status code and response body

@@ -8,8 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// teardown, err := mustStartPostgresContainer()
-	teardown, err := testutils.StartPostgresContainer(false)
+	teardown, err := testutils.StartPostgresContainer(false, "")
 	if err != nil {
 		log.Fatalf("could not start postgres container: %v", err)
 	}

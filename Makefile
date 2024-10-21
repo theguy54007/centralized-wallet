@@ -51,6 +51,11 @@ test:
 test-v:
 	@echo "Testing with v..."
 	@go test ./... -v
+
+test-coverage-html:
+	@echo "Testing with coverage..."
+	@go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out
+
 # Integrations Tests for the application
 itest:
 	@echo "Running integration tests..."
