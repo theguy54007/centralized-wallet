@@ -56,7 +56,7 @@ func TestRegisterUser_EmailAlreadyInUse(t *testing.T) {
 
 	// Assert
 	assert.Nil(t, user)
-	assert.EqualError(t, err, "email already in use")
+	assert.EqualError(t, err, utils.ErrEmailAlreadyInUse.Message)
 	mockServiceTestHelper.userRepo.AssertExpectations(t)
 }
 
