@@ -178,10 +178,10 @@ The project follows a clean, modular architecture with separation of concerns ac
 ```bash
 ├── cmd
 │   └── api
-│       └── main.go       # Application entry point, sets up the server
+│   │   └── main.go       # Application entry point, sets up the server
 │   ├── migration
-│       └── main.go       # Commandline for migrating DB
-│   ├── seed
+│   │   └── main.go       # Commandline for migrating DB
+│   └── seed
 │       └── main.go       # Command line for generating user data
 ├── internal
 │   ├── auth              # Authentication middleware and JWT handling
@@ -194,8 +194,11 @@ The project follows a clean, modular architecture with separation of concerns ac
 │   ├── transaction       # Transaction domain (service, repo)
 │   ├── user              # User domain (handler, service, repo)
 │   ├── wallet            # Wallet domain (handler, service, repo)
-│   ├── utils             # Utility functions, API response helpers,Custom error handling logic and middlewares
-├── tests             # Unit and integration test utilities, mock services and repositories
+│   └── utils             # Utility functions, API response helpers,Custom error handling logic and middlewares
+├── tests                 # Unit and integration test utilities, mock services and repositories
+│   ├── integrations      # Integrations test files for wallet and transaction
+│   ├── mocks             # several mocking files like mock_wallet_service, mock_wallet_repo, mock_transaction_repo, etc
+│   └── testutils         # test use helper, test db and test redis related code
 ├── logs
 │    └── app.logs         # append log to log file
 └── Makefile              # Commands for seeding data, running tests, and other utilities
