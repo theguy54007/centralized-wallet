@@ -36,7 +36,7 @@ func TestRecordTransactionService_Error(t *testing.T) {
 	setupTransactionServiceMock()
 
 	// Step 2: Create a new TransactionService
-	ts := transaction.NewTransactionService(mockTransactionTestHelper.repo)
+	ts := transaction.NewTransactionService(mockTransactionTestHelper.repo, nil)
 
 	// Test when both fromWalletNumber and toWalletNumber are nil or empty
 	var fromWalletNumber *string = nil
@@ -56,7 +56,7 @@ func TestRecordTransactionService_Error(t *testing.T) {
 // New test function for FormatTransactionResponse
 func TestFormatTransactionResponse(t *testing.T) {
 	// Step 1: Initialize service (no mocks needed for this specific function)
-	ts := transaction.NewTransactionService(nil) // Repo not required for this test
+	ts := transaction.NewTransactionService(nil, nil) // Repo not required for this test
 
 	// Step 2: Create mock transaction data
 	transactions := []models.TransactionWithEmails{

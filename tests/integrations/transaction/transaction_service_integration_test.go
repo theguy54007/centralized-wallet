@@ -127,9 +127,8 @@ func TestGetTransactionHistoryService(t *testing.T) {
 	// Set up test data (fixtures)
 	setupFixtures()
 
-	// Reuse the initialized database connection
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo)
+	transactionService := transaction.NewTransactionService(transactionRepo, nil)
 
 	// Define the test cases (table-driven test)
 	testCases := []struct {

@@ -209,7 +209,7 @@ func TestDepositService(t *testing.T) {
 
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo)
+	transactionService := transaction.NewTransactionService(transactionRepo, nil)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 
 	// Define the test cases
@@ -274,7 +274,7 @@ func TestWithdrawService(t *testing.T) {
 	// Initialize the wallet repository and service
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo)
+	transactionService := transaction.NewTransactionService(transactionRepo, nil)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 
 	// Define the test cases
@@ -348,7 +348,7 @@ func TestTransferService(t *testing.T) {
 	// Initialize the wallet repository and service
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo)
+	transactionService := transaction.NewTransactionService(transactionRepo, nil)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 
 	// Define the test cases

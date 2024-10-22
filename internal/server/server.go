@@ -40,7 +40,7 @@ func NewServer() *http.Server {
 
 	// Initialize services
 
-	transactionService := transaction.NewTransactionService(transactionRepo)
+	transactionService := transaction.NewTransactionService(transactionRepo, rd)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 	userService := user.NewUserService(userRepo)
 	NewServer := &Server{
