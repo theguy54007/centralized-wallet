@@ -812,144 +812,126 @@ Redis’ fast in-memory storage and eviction policies make it a great fit for ta
 #### Non-Functional Requirements
 
 1. **Performance**:
-    - **Caching with Redis**: Wallet numbers and transaction history are cached in Redis to improve performance by reducing load on the database for frequently accessed data. This speeds up response times for users checking their transaction history or balance.
-    - **Database Optimization**: The PostgreSQL database schema has been designed with normalization and appropriate indexes to ensure efficient querying of user and transaction data.
-    - **Graceful Shutdown**: The system is equipped with a graceful shutdown mechanism to ensure that all in-progress requests are properly handled before the server shuts down, enhancing system reliability.
+    - **Redis Caching**: Wallet numbers and transaction history are cached in Redis to reduce database load and improve response times, especially for frequently accessed data like balance checks and transaction history.
+    - **Database Optimization**: The PostgreSQL schema uses normalization and indexing to ensure efficient querying and reduce latency.
 
 2. **Scalability**:
-    - The project follows the separation of concerns pattern with well-defined layers (handler, service, repository), allowing easy scaling by adding new features or improving existing ones without impacting other parts of the system.
-    - Using Redis for caching ensures that the system can handle a growing user base without heavily relying on the database for every transaction query.
+    - The project uses well-defined layers (handler, service, repository), making it easier to scale and add new features without affecting other parts of the system.
+    - Redis caching ensures the system can handle a growing user base without overloading the database for frequent queries.
 
 3. **Security**:
-    - **JWT Authentication**: The use of JWT for authentication, with a token expiration time of 72 hours, ensures that users are securely authenticated while preventing stale tokens from being used.
-    - **Token Blacklisting**: Logged-out tokens are stored in Redis and blacklisted to ensure they cannot be used again, even if they have not yet expired. This helps prevent unauthorized access after logout.
-    - **Error Handling and Validation**: All API endpoints have thorough input validation and error handling to prevent bad or malicious data from entering the system. Any unauthorized access or misuse is logged for auditing and debugging.
+    - **JWT Authentication**: Secure authentication is implemented using JWT with a 72-hour token expiration to ensure only valid tokens are used.
+    - **Token Blacklisting**: Logged-out tokens are blacklisted in Redis, preventing their reuse and enhancing security.
+    - **Input Validation and Error Handling**: All API endpoints validate inputs and handle errors securely to prevent unauthorized access or malicious data entry.
 
 4. **Error Handling and Logging**:
-    - Custom error messages are defined and logged at various points in the application. This ensures that developers can track issues and understand where they originate.
-    - Errors in the service or repository layers are handled gracefully, and detailed logs are written to assist developers in debugging and maintenance.
+    - Errors are logged centrally, helping developers debug and track issues efficiently.
+    - Service and repository layer errors are handled gracefully, with detailed logs written for troubleshooting.
 
 5. **Test Coverage**:
-    - Unit tests cover critical areas like wallet operations, transaction handling, and user authentication, ensuring that core features are reliable.
-    - Integration tests, using Testcontainers, validate the system’s interaction with real instances of PostgreSQL and Redis to ensure that the code works as expected in production-like environments.
-    - While time constraints limited total coverage, the most important and complex operations have been covered to ensure robustness.
+    - **Unit Tests**: Critical features like wallet operations and authentication are covered to ensure reliability.
+    - **Integration Tests**: Real instances of PostgreSQL and Redis are used in integration tests to simulate production environments, ensuring system stability.
+    - The most important parts of the application are thoroughly tested, although not every part is covered due to time constraints.
 
 6. **Simplicity and Maintainability**:
-    - The project follows a clear and simple architecture that separates business logic, data handling, and presentation layers, making it easier to maintain and extend.
-    - **Dependency Injection** is used in services and repositories, allowing easier testing and decoupling between layers.
-    - The **README** provides clear instructions for setting up, running, and testing the application, ensuring that developers and reviewers can quickly understand and work with the code.
+    - The project is designed with a clear separation of concerns, making it easy to maintain and extend.
+    - **Dependency Injection** is used to decouple services and repositories, simplifying testing and enhancing flexibility.
 
-### Explaining Any Decisions You Made
+## Explaining Any Decisions You Made
 
-1. **Choice of JWT for Authentication**:
-    - I chose **JSON Web Tokens (JWT)** for user authentication due to its stateless nature and scalability. JWT is widely adopted for securing APIs and allows users to authenticate without requiring server-side session storage, which is ideal for scalability.
-    - JWTs are set to expire after 72 hours to ensure security. This limits the lifespan of a potentially compromised token. A token blacklist mechanism is implemented using Redis, allowing tokens to be invalidated upon logout.
-    - While JWT refresh tokens are a common practice for renewing tokens without forcing re-logins, they were not implemented in this version due to time constraints. This is a potential area for future improvement.
+1. **JWT for Authentication**:
+   - JWT was chosen for its stateless nature, scalability, and simplicity. It ensures security with token expiration set to 72 hours. Redis was used to implement token blacklisting for invalidating tokens upon logout. A refresh token mechanism was not included due to time constraints but could be added later.
 
 2. **Redis for Performance and Security**:
-    - Redis was used for two primary purposes: caching and token blacklisting. Caching helps reduce the database load and enhances performance by storing frequently queried data like wallet numbers and transaction history. This is especially useful when dealing with expensive queries involving database joins.
-    - Redis also serves as the backend for blacklisting JWT tokens after logout. This ensures that tokens are invalidated before they expire and can no longer be used for authentication. Redis’s fast access and TTL (time-to-live) support make it ideal for this use case.
+   - Redis was used for caching frequently accessed data like wallet numbers and transaction history, reducing database load. It also supports token blacklisting for securing user sessions after logout, leveraging Redis’s fast access and TTL features.
 
-3. **Repository-Service Pattern for Clean Architecture**:
-    - The project follows the **repository-service pattern**, ensuring a clear separation between business logic (service layer) and data access logic (repository layer).
-    - The repository layer interacts directly with the database, handling queries and transactions. The service layer encapsulates business logic and coordinates interactions between repositories and other services, like the transaction service for recording transactions after wallet operations.
-    - This approach improves testability, maintainability, and decoupling of responsibilities. Dependency injection is used throughout the project to inject dependencies into services and handlers.
+3. **Dependency Injection**:
+   - The project leverages **dependency injection** to manage dependencies between services and handlers. This approach allows for better testability, as services can easily be swapped out for mocks during testing. It also ensures that dependencies are centralized, making it easier to manage and extend the application.
 
-4. **Middleware for Error Handling and Logging**:
-    - A centralized error-handling middleware was implemented to standardize the way errors are managed throughout the application. This middleware catches any unhandled errors and responds with a consistent error structure, ensuring uniform error messages.
-    - The middleware also logs critical internal errors for further debugging, providing valuable information for diagnosing issues. This approach ensures that errors are managed in a clean, concise manner without repeating error handling code in every handler.
 
-5. **Transaction History Design**:
-    - **DB Transaction for Consistency**: To ensure transaction records and wallet balances remain consistent, I employed **database transactions** during deposit, withdrawal, and transfer operations. This ensures that either all operations succeed (wallet updates and transaction records) or all operations are reverted in case of failure. This design guarantees the atomicity of operations, making it easier to maintain the consistency of both wallet records and transaction history.
-    - **From/To Wallet Number Design**: I chose to use `from_wallet_number` and `to_wallet_number` fields instead of a single wallet number or `user_id`. This design was selected for several reasons:
-        1. **Clarity in Transactions**: Using both `from_wallet_number` and `to_wallet_number` makes it explicitly clear where funds are coming from and where they are going. This is especially useful in transfer operations between users.
-        2. **Flexibility**: By using wallet numbers instead of user IDs, we allow for greater flexibility in the future. For example, this structure could easily support additional features like sub-accounts or multi-wallet users without needing to alter the transaction schema.
-        3. **Security and Abstraction**: By using wallet numbers instead of user IDs, the system abstracts away direct user identification in transactions, potentially increasing security and allowing wallet numbers to serve as the primary reference for financial operations, which is a typical pattern in many financial systems.
+4. **Repository-Service Pattern**:
+   - The project follows the repository-service pattern, separating data access logic (repository) from business logic (service). Services coordinate between repositories and other services, like recording transactions after wallet operations. This pattern enhances testability, maintainability, and decoupling.
 
-6. **Wallet Number Generation**:
-    - In this system, every user is assigned a **unique wallet number** upon wallet creation. The wallet number functions similarly to a **bank account number**, uniquely identifying each wallet in the system.
-    - For the purpose of this project, a **simple algorithm** was used to generate wallet numbers by combining the user ID, a timestamp, and a random string. This was done to ensure that each wallet number is unique without introducing complex logic.
+5. **Error Handling and Logging**:
+   - A centralized error-handling mechanism was implemented via middleware. It standardizes error responses across the application and logs critical internal errors for debugging purposes.
 
-7. **Simple Token-Based Authentication**:
-    - Given the time constraints, I opted for simplicity by implementing token-based authentication without refresh tokens. Users must log in again after their JWT expires in 72 hours. This reduces the complexity of token lifecycle management.
-    - The implementation is future-proofed by incorporating a Redis-based blacklist system for logout, allowing tokens to be invalidated before their expiration. Introducing refresh tokens in future iterations would improve the user experience by avoiding frequent logins.
+6. **Transaction History Design**:
+   - **DB Transaction**: All wallet operations (deposit, withdraw, transfer) are wrapped in database transactions to ensure data consistency. If any step fails, the entire operation is rolled back.
+   - **From/To Wallet Number**: The transaction design uses both `from_wallet_number` and `to_wallet_number` for clarity, security, and flexibility. This allows the system to easily support more complex financial operations like multi-wallet users.
 
-8. **Testing Strategy**:
-    - I focused on writing unit tests for core functionalities (wallet services, transaction services, user handlers, etc.), ensuring that business logic and edge cases are covered with mock objects.
-    - Integration tests were written using `testcontainers-go` to ensure the seamless integration between services and databases (Redis, PostgreSQL). This verifies the system's behavior in a real-world environment with external dependencies.
-    - While full coverage was not achieved due to time constraints, I prioritized testing the most critical paths and edge cases in the application, ensuring that key areas are well-tested.
+7. **Wallet Number Generation**:
+   - Wallet numbers are generated uniquely upon wallet creation, similar to bank account numbers. A simple algorithm combining user ID, timestamp, and a random string was used for this project. More advanced methods could be implemented for production use.
 
-9. **Security Considerations**:
-    - In addition to JWT authentication, user passwords are hashed and stored securely to prevent leaks in case of a data breach.
-    - Sensitive operations (e.g., wallet transfers, balance checks) are protected by the JWT authentication mechanism, ensuring that only authorized users can perform actions on their own wallets. The use of Redis for token blacklisting ensures that compromised tokens can be revoked immediately upon logout.
+8. **Simple Authentication**:
+   - Token-based authentication was implemented for simplicity, without refresh tokens. Users must re-login after 72 hours. Redis-based token blacklisting ensures compromised tokens can be invalidated before they expire.
+
+9. **Testing Strategy**:
+   - Unit tests were prioritized for key functionalities like wallet services and handlers. Integration tests were performed using `testcontainers-go` to verify interactions with Redis and PostgreSQL. Full coverage wasn't achieved due to time constraints, but core features are well-tested.
+
+10. **Security Considerations**:
+   - Passwords are securely hashed, and sensitive operations like transfers and balance checks are protected by JWT authentication. Redis helps manage token blacklisting, ensuring tokens can be revoked upon logout.
 
 ### Features Not Included in the Submission
 
 1. **Refresh Tokens for Authentication**:
-    - I chose to implement **JWT-based authentication** without the use of **refresh tokens**. Typically, refresh tokens are used to prolong user sessions without requiring frequent re-authentication, but due to time constraints, I focused on implementing basic token expiration and token invalidation using Redis.
-    - In a real-world scenario, adding refresh tokens would improve the user experience by allowing users to automatically refresh their tokens without requiring login after expiration.
+    - I implemented **JWT-based authentication** but did not include **refresh tokens** due to time constraints. In production, refresh tokens would enhance the user experience by allowing session extension without frequent re-logins.
 
 2. **Advanced Wallet Number Generation**:
-    - The current implementation of **wallet number generation** uses a basic combination of user ID, timestamp, and random string. While this is sufficient for the project’s scope, a more robust wallet number generation mechanism would be needed in production. For example, using a globally unique identifier (GUID) or a centralized sequence generator to ensure uniqueness and handle collision detection.
+    - The wallet number generation is currently basic (user ID, timestamp, random string). For a production system, a more robust approach like GUID or centralized sequence generation would ensure uniqueness and prevent collisions.
 
 3. **Comprehensive Data Validation and Input Sanitization**:
-    - Although some basic data validation is performed (e.g., checking for valid email format and minimum password length), the project does not include **comprehensive input validation** or **input sanitization** for all possible cases. Adding more robust validation would ensure that the system is more resilient against invalid or malicious inputs.
+    - Basic validation is in place, but the project lacks comprehensive **input validation** and **sanitization**. This could be improved to ensure the system is more resilient to invalid or malicious data inputs.
 
-4. **End-to-End Testing:**
-   I did not include full end-to-end tests such as route testing. The main reason for this omission is the time constraint. However, I have covered unit tests for handlers and integration tests for services, which sufficiently test the core functionality.
+4. **End-to-End Testing**:
+    - Full end-to-end tests (e.g., route tests) were not included due to time constraints. However, the core functionality is covered with unit tests for handlers and integration tests for services.
 
-5. **Test Code Structure:**
-   Not every test case is written using clean code principles or follows the best structure. This can be improved in future iterations, but given the time limit, I focused on covering the main scenarios rather than code refinement in tests.
+5. **Test Code Structure**:
+    - While the core scenarios are tested, not every test follows clean code principles. Given more time, I would refine the test structure to ensure better maintainability.
 
-6. **Simplified Database Design:**
-   I chose to keep the database schema simple, focusing only on the necessary tables like `transactions` and `wallets`. More complex relational designs could be added in the future, but for now, this design satisfies the core requirements.
+6. **Simplified Database Design**:
+    - The database schema is simplified to include only the essential tables like `transactions` and `wallets`. A more complex relational design could be added in the future as needed.
 
-7. **Transaction History Design (Code Location):**
-   - The transaction history logic is currently located in `wallet_handlers.go`. Ideally, this code should be separated into its own transaction handler and service. However, doing so would have introduced circular dependencies between services. While this could have been resolved by introducing a shared service layer, it would have complicated the code. Due to time constraints, the decision was made to leave it in `wallet_handlers.go` for now.
+7. **Transaction History Design (Code Location)**:
+    - Transaction history logic is in `wallet_handlers.go`, although it ideally belongs in its own handler and service. Due to potential circular dependencies and time constraints, this was left in the wallet handler. A shared service layer could address this in future iterations.
 
-8. **Authentication Security Check:**
-   - The current implementation of JWT authentication middleware fetches the `user_id` from the JWT but does not verify whether the user actually exists in the system. This could pose a potential security risk. A more secure and optimal approach would involve adding middleware or extending the JWT to check for the existence of the user in the database, ensuring the user is valid before allowing access to protected routes.
-
+8. **Authentication Security Check**:
+    - The current JWT middleware does not verify the existence of the user in the database. A more secure implementation would add a user existence check to prevent unauthorized access, improving the overall security of the system.
 
 ### Areas for Future Improvement
 
 1. **Code Maintainability**:
-    - **Database Code and Repository Layer**: The current repository layer requires writing raw SQL queries, which can lead to duplication and verbosity, making the code harder to maintain. Introducing an ORM (like GORM in Go) or a query builder library would simplify database interactions, reduce the likelihood of repetitive code, and make the codebase more manageable. An ORM would also allow easier migrations, relationship handling, and querying without needing to write complex SQL queries manually for each operation.
-    - **Service and Repository Code Organization**: While the service layer decouples business logic from repository code, there is room for improvement in how the code is organized and maintained. Refactoring parts of the service logic that involve complex interactions with multiple repositories would improve clarity and modularity.
+    - **Database Code and Repository Layer**: The current repository layer requires writing raw SQL queries, leading to duplication and verbosity. Introducing an ORM (e.g., GORM) or a query builder could simplify database operations and improve maintainability.
+    - **Service and Repository Code Organization**: The service layer can be further refactored to improve clarity and modularity, especially where services interact with multiple repositories.
 
 2. **Event Sourcing / Event-Driven Architecture for Transaction Handling**:
-    - The current approach uses **database transactions** to ensure consistency when recording transactions (deposit, withdrawal, transfer). While this ensures strong consistency, it can introduce some latency due to the transactional nature of database operations.
-    - An alternative approach would be to implement **event sourcing** or an **event-driven architecture**, where an event is generated and published whenever a transaction operation is initiated. Subscribers can then listen to these events and perform the necessary actions, such as recording the transaction, updating the wallet balance, etc.
-    - This approach could improve the system’s scalability, reduce latency, and ensure eventual consistency. However, it introduces additional complexity and would require careful handling to ensure message delivery guarantees (e.g., using Kafka or a similar messaging system).
+    - Currently, **database transactions** ensure consistency during wallet operations, but an **event-driven architecture** could reduce latency and enhance scalability. For example, emitting events for each operation (deposit, withdrawal, transfer) and processing them asynchronously would improve overall performance.
 
 3. **Testing Coverage and Depth**:
-    - **Expanded Test Coverage**: While critical parts of the project (wallet, transaction, authentication) have good test coverage, additional unit and integration tests would be beneficial to cover more edge cases and improve overall robustness. This includes testing error scenarios more thoroughly, particularly with complex transaction workflows and multi-service interactions.
-    - **End-to-End (E2E) Testing**: Introducing E2E testing for API endpoints, simulating real-world scenarios, would enhance confidence that the system works as expected across the full stack (from request to database).
+    - **Expanded Test Coverage**: While core functionalities are tested, additional unit tests and integration tests are needed for edge cases and multi-service interactions.
+    - **End-to-End (E2E) Testing**: Adding E2E tests for API endpoints would enhance confidence that the system works across the full stack (request to database).
 
 4. **Performance Optimization**:
-    - **Database Query Optimization**: Some database queries, especially those involving joins (e.g., retrieving transaction history), may become less efficient as the data grows. Optimizing SQL queries and adding appropriate indexes will be crucial for performance at scale. Additionally, implementing query caching strategies or leveraging database-specific features (like PostgreSQL materialized views) could further enhance performance for frequently accessed data.
-    - **Rate Limiting**: Implementing rate limiting to prevent abuse of the API endpoints would help secure the system from DDoS attacks or excessive load from malicious users.
+    - **Database Query Optimization**: Optimizing queries and adding indexes, particularly for transaction history retrieval (involving joins), will ensure the system scales well. Caching strategies could further enhance performance.
+    - **Rate Limiting**: Implementing rate limiting would secure the system against abuse and malicious activities, protecting it from DDoS attacks or high load.
 
 5. **Security Enhancements**:
-    - **Implementing Refresh Tokens**: Currently, the system only uses access tokens, which expire after 72 hours. Introducing refresh tokens would improve the security and user experience by allowing users to stay logged in for longer periods without re-entering their credentials.
-    - **Two-Factor Authentication (2FA)**: For higher security, especially in handling monetary transactions, integrating 2FA into the authentication process would add an additional layer of security for user accounts.
+    - **Refresh Tokens**: Adding refresh tokens would allow users to stay logged in longer, improving security and user experience by enabling token renewal without re-login.
+    - **Two-Factor Authentication (2FA)**: Adding 2FA, especially for monetary transactions, would increase the security of user accounts.
 
 6. **Code Cleanliness**:
-    - **Refactoring for Simplicity**: While the code structure is functional, there are areas where the code can be cleaned up for better readability and simplicity. Reducing the number of nested conditions, improving variable naming, and breaking down larger functions into smaller, reusable components would improve the overall maintainability of the codebase.
-    - **DRY Principle (Don't Repeat Yourself)**: Some code across the services, especially related to database queries, could benefit from refactoring to follow the DRY principle. Common logic can be extracted into helper functions or shared service methods to avoid duplication and improve maintainability.
-    - **Configuration Management**: The current configuration (e.g., database, Redis, JWT secret) is handled through environment variables, but this could be enhanced using a configuration management library that supports different environments (development, production) with more structured validation.
+    - **Refactoring for Simplicity**: Breaking down larger functions into smaller, reusable components and improving readability would enhance code maintainability.
+    - **DRY Principle**: Refactoring common logic (e.g., database queries) into helper functions or shared service methods would reduce duplication and improve maintainability.
 
 7. **Future Feature Expansions**:
-    - **Scalability Considerations**: As the user base grows, further architectural improvements, such as breaking out services into microservices, would be necessary. This would allow independent scaling of components like wallet management, transaction handling, and authentication.
-    - **Audit Logs**: Adding audit logs for key events like deposits, withdrawals, and transfers would be beneficial for both security and troubleshooting purposes.
-    - **Improved Error Logging**: While error logging is currently implemented, improving the granularity of logs (e.g., adding user context and request metadata) would make it easier to debug issues in production.
+    - **Scalability Considerations**: As the system grows, separating services into microservices would enable independent scaling of wallet management, transactions, and authentication.
+    - **Audit Logs**: Adding audit logs for deposits, withdrawals, and transfers would improve security and troubleshooting.
+    - **Improved Error Logging**: Enhancing logs with user context and request metadata would make debugging easier in production.
+
 8. **Reusing Wallet Middleware for Other Operations**:
-    - Currently, the **wallet middleware** caches and fetches the wallet number to boost performance when checking transaction history. However, other wallet-related operations (such as deposit, withdraw, and transfer) can also leverage this middleware to reduce database queries and improve code reusability.
-    - By caching wallet information more widely, overall system performance could be enhanced, especially for frequent operations. This approach would also make the code more DRY (Don’t Repeat Yourself) by centralizing the retrieval and validation of wallet numbers in the middleware.
+    - The **wallet middleware** currently caches wallet numbers for transaction history. Expanding its use to other wallet operations (deposit, withdraw, transfer) could improve performance and code reusability.
+
 9. **Advanced Wallet Number Generation**:
-    - The current wallet number generation mechanism is basic and may not be suitable for large-scale production environments. It uses a combination of the user ID, timestamp, and random string, but this can be replaced with a more robust solution such as using **GUIDs** or implementing a **centralized sequence generator** for globally unique and collision-free wallet numbers.
-
-
+    - The current wallet number generation mechanism is basic and may not scale. A more robust solution, such as using **GUIDs** or a **centralized sequence generator**, would ensure globally unique and collision-free wallet numbers.
 
 ## Conclusion
 
