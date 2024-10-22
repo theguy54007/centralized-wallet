@@ -7,9 +7,9 @@
 - [Installation and Setup](#installation-and-setup)
 - [API Workflow](#api-workflow)
 - [Project Structure](#project-structure)
+  - [Project Boostrap](#project-bootstrap)
   - [Domain Structure](#domain-structure)
   - [Authentication Mechanism](#authentication-mechanism)
-  - [Project Boostrap](#project-bootstrap)
   - [API Endpoints](#api-endpoints)
   - [Error Handling](#error-handling)
   - [Logging](#logging)
@@ -166,27 +166,34 @@ Authorization: Bearer <your-jwt-token-here>
 
 ## Project Structure
 
+### Project Bootstrap
+
+This project was bootstrapped using **go-blueprint**, which provides a well-structured Go project starter template. The template helped set up the architecture, environment configuration, testing, and database handling. More information about go-blueprint can be found [here](https://github.com/Melkeydev/go-blueprint).
+
+
 The project follows a clean, modular architecture with separation of concerns across different layers. Here's an overview of the directory structure:
 
 ```bash
 ├── cmd
 │   └── api
 │       └── main.go       # Application entry point, sets up the server
-│   ├── migration         # Authentication middleware and JWT handling
-│       └── main.go
-│   ├── seed         # Authentication middleware and JWT handling
-│       └── main.go
+│   ├── migration
+│       └── main.go       # Commandline for migrating DB
+│   ├── seed
+│       └── main.go       # Command line for generating user data
 ├── internal
 │   ├── auth              # Authentication middleware and JWT handling
-│   ├── apperrors         # Custom error handling logic
 │   ├── database          # Database connection and setup
+│   ├── logging           # Logging handling logic
+│   ├── models            # Managing each DB table model structure and response struct
+│   ├── seed              # Managing Seed file for seed generator and integrating test
 │   ├── redis             # Redis connection and operations
 │   ├── server            # Server setup and routes registration
 │   ├── transaction       # Transaction domain (service, repo)
 │   ├── user              # User domain (handler, service, repo)
 │   ├── wallet            # Wallet domain (handler, service, repo)
 │   ├── utils             # Utility functions, API response helpers,Custom error handling logic and middlewares
-│   └── tests             # Unit and integration test utilities, mock services and repositories
+├── tests             # Unit and integration test utilities, mock services and repositories
 ├── logs
 │    └── app.logs         # append log to log file
 └── Makefile              # Commands for seeding data, running tests, and other utilities
@@ -240,10 +247,6 @@ The project uses **JWT-based authentication**:
 
 4. **Redis Integration**:
    - Redis is used to store blacklisted tokens with expiration times.
-
-### Project Bootstrap
-
-This project was bootstrapped using **go-blueprint**, which provides a well-structured Go project starter template. The template helped set up the architecture, environment configuration, testing, and database handling. More information about go-blueprint can be found [here](https://github.com/Melkeydev/go-blueprint).
 
 ---
 
