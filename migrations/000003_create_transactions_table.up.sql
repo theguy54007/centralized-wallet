@@ -1,10 +1,12 @@
-CREATE TABLE transactions (
-  id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL,
-  transaction_type VARCHAR(50) NOT NULL, -- "deposit" or "withdraw"
-  amount DECIMAL(10, 2) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  -- Foreign key constraint to link transactions to a specific user
-  FOREIGN KEY (user_id) REFERENCES users(id)
+CREATE TABLE IF NOT EXISTS transactions (
+    id SERIAL PRIMARY KEY,
+    from_wallet_number VARCHAR(50),
+    to_wallet_number VARCHAR(50),
+    transaction_type VARCHAR(50) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add indexes on from_wallet_number and to_wallet_number columns
+CREATE INDEX idx_from_wallet_number ON transactions(from_wallet_number);
+CREATE INDEX idx_to_wallet_number ON transactions(to_wallet_number);

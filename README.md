@@ -36,7 +36,9 @@ This project implements a centralized wallet system where users can perform the 
 - Check their wallet balance
 - View their transaction history
 
-The project is built using Go and follows best practices for error handling, logging, and test coverage. The wallet system keeps track of users and wallets, and logs all transactions securely.
+The project is built using **Go (version 1.22)** and leverages the **Gin web framework** for its simplicity, performance, and ease of creating RESTful APIs. Gin provides built-in middleware support for routing, error handling, and JSON handling, making it a great fit for building efficient and scalable APIs.
+
+This project follows best practices for error handling, logging, and test coverage. The wallet system keeps track of users and wallets, logs all transactions securely, and uses Redis for caching and token management to enhance performance and security.
 
 ## Installation and Setup
 
@@ -46,13 +48,14 @@ The project is built using Go and follows best practices for error handling, log
       git clone https://github.com/theguy54007/centralized-wallet
       cd centralized-wallet
       ```
+
   2. Setup Go Environment:
       Ensure that you are using Go version 1.22. It’s recommended to use gvm (Go Version Manager) to manage Go versions easily.
 
   3. Setup environment variables:
       Copy the `.env.example` and rename it as `.env` in the root directory. Then modify the following variables as per your environment setup:
 
-      ```
+      ```env
       PORT=8080
       APP_ENV=local
       DB_HOST=localhost
