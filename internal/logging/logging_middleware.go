@@ -33,17 +33,29 @@ func LoggingMiddleware() gin.HandlerFunc {
 		// Process request
 		c.Next()
 
+		// After request processing
 		statusCode := c.Writer.Status()
+		duration := time.Since(startTime)
+		method := c.Request.Method
+		path := c.Request.URL.Path
+		clientIP := c.ClientIP()
+		responseBody := responseWriter.body.String()
 
-		// Log only if the response status code indicates an error (400 and above)
-		if statusCode >= 400 {
-			duration := time.Since(startTime)
-			method := c.Request.Method
-			path := c.Request.URL.Path
-			clientIP := c.ClientIP()
-			responseBody := responseWriter.body.String()
-
-			// Log request and error response details
+		// Get the internal error from the context if present
+		internalError, exists := c.Get("internal_error")
+		if exists {
+			// Log the internal error (if present) along with the request details
+			Log.WithFields(map[string]interface{}{
+				"status":         statusCode,
+				"method":         method,
+				"path":           path,
+				"client_ip":      clientIP,
+				"duration":       duration,
+				"response":       responseBody,
+				"internal_error": internalError,
+			}).Error("Internal error response logged")
+		} else if statusCode >= 400 {
+			// Log error response details (for client errors without an internal error)
 			Log.WithFields(map[string]interface{}{
 				"status":    statusCode,
 				"method":    method,

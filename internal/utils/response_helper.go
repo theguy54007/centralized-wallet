@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -24,15 +23,12 @@ func SuccessResponse(c *gin.Context, message string, data interface{}) {
 
 func ErrorResponse(c *gin.Context, err *AppError, internalErr error, context string) {
 	if internalErr != nil {
-		logError(internalErr, err.Message, context)
+		// Store internal error in the context to be logged by the middleware
+		c.Set("internal_error", internalErr.Error())
 	}
+
 	c.JSON(err.Code, APIResponse{
 		Status:  "error",
 		Message: err.Message,
 	})
-}
-
-func logError(err error, message string, context string) {
-	// Log the error details safely
-	log.Printf("[ERROR] %s: %s, Details: %v", context, message, err)
 }
