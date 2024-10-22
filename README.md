@@ -78,10 +78,10 @@ This project follows best practices for error handling, logging, and test covera
       go mod download
       ```
 
-  5. Start Postgres and Redis with Docker
+  5. Start Postgres and Redis with Docker (make sure your local has installed Docker)
 
       ```bash
-      make docker-up
+      make docker-run
       ```
 
   6. After Docker posgtres is ready, run migration
@@ -93,7 +93,7 @@ This project follows best practices for error handling, logging, and test covera
   7. Generate User Seed data
 
       ```bash
-      make db-migrate
+      make seed
       ```
 
   8. Run the API server:
@@ -108,64 +108,74 @@ This project follows best practices for error handling, logging, and test covera
 
 - Before accessing wallet-related operations, users need to register and login to get a valid JWT token, which is required for authentication on all wallet-related API requests.
 - There are two ways to set up the user data:
-  1. Manual Registration:
-    - Use the POST /register endpoint to create a new user.
-    - After registration, use the POST /login endpoint to get the JWT token.
-  2. Seed Data:
-    - Alternatively, you can generate seed data by running the command:
+  1. **Manual Registration**:
+  - Use the `POST /register` endpoint to create a new user.
+  - After registration, use the `POST /login` endpoint to get the JWT token.
+  2. **Seed Data**:
+  - Alternatively, you can generate seed data by running the command:
 
     ```bash
     make seed
     ```
 
-    - This will create pre-defined user accounts and wallets for testing.
+  - This will create pre-defined user accounts and wallets for testing.
 
-    - If you want to reseed with a clean database, use the command:
+  - If you want to reseed with a clean database, use the command:
+
     ```bash
     make seed-truncate
     ```
 
-- Important: Login to get the JWT token by using the POST /login endpoint and provide the email and password. The generated token will be needed in the Authorization header of every wallet-related API request.
+- **Important**: Login to get the JWT token by using the `POST /login` endpoint and provide the email and password. The generated token will be needed in the `Authorization` header of every wallet-related API request.
 - For the seed data, here are the default credentials:
-  - User 1:
-    - Email: jack@example.com
+  - **User 1**:
+    - Email: <jack@example.com>
     - Password: password1
-  - User 2:
-    - Email: david@example.com
+  - **User 2**:
+    - Email: <david@example.com>
     - Password: password2
-
 
 ### 2. JWT Token Authentication
 
-- Once logged in, the server will return a JWT token, which must be included in the Authorization header in the format Bearer <JWT token> for all wallet-related operations (deposit, withdraw, transfer, balance check, etc.).
+- Once logged in, the server will return a JWT token, which must be included in the `Authorization` header in the format `Bearer <JWT token>` for all wallet-related operations (deposit, withdraw, transfer, balance check, etc.).
 - For example:
 
 ```
 Authorization: Bearer <your-jwt-token-here>
 ```
 
-### 3. Wallet-Related API Endpoints
+### 3. Create Wallet
+
+- After logging in and obtaining the JWT token, users must create a wallet before performing any wallet-related actions.
+- Use the `POST /wallets/create` endpoint to create a new wallet for the authenticated user.
+- The wallet creation request must include the JWT token in the `Authorization` header, and the system will generate a unique wallet number for the user.
+
+### 4. Wallet-Related API Endpoints
 
  After obtaining the JWT token, you can interact with all wallet-related API endpoints by including the token in the Authorization header.
 
-### API Workflow Overview:
+### API Workflow Overview
 
-1. Register or Seed Data:
-  - First, create a new user using the POST /register endpoint or run the make seed command to generate seed data.
-2. Login:
-  - Use the POST /login endpoint to get the JWT token, which will authenticate all wallet-related requests.
-3. Create a wallet:
-  - Use the token to manually create a wallet using the /wallets/create API.
-  - This is required before making any deposit, withdrawal, or transfer requests.
-4. Authenticated Requests:
-  - Use the token to authenticate requests to wallet-related endpoints:
-  - POST /wallets/deposit: Deposit money into your wallet.
-  - POST /wallets/withdraw: Withdraw money from your wallet.
-  - POST /wallets/transfer: Transfer money to another user.
-  - GET /wallets/balance: Check your wallet balance.
-  - GET /wallets/transactions: View your transaction history.
-5. Logout:
-  - Use the POST /logout endpoint to invalidate the token and log out the user. After logging out, the token will be blacklisted and no longer valid for future requests.
+1. **Register or Seed Data**:
+    - First, create a new user using the `POST /register` endpoint, or run the `make seed` command to generate seed data.
+
+2. **Login**:
+    - Use the `POST /login` endpoint to get the JWT token, which will authenticate all wallet-related requests.
+
+3. **Create a Wallet**:
+    - Use the token to manually create a wallet using the `/wallets/create` API.
+    - This is required before making any deposit, withdrawal, or transfer requests.
+
+4. **Authenticated Requests**:
+    - Use the token to authenticate requests to wallet-related endpoints:
+      - `POST /wallets/deposit`: Deposit money into your wallet.
+      - `POST /wallets/withdraw`: Withdraw money from your wallet.
+      - `POST /wallets/transfer`: Transfer money to another user.
+      - `GET /wallets/balance`: Check your wallet balance.
+      - `GET /wallets/transactions`: View your transaction history.
+
+5. **Logout**:
+    - Use the `POST /logout` endpoint to invalidate the token and log out the user. After logging out, the token will be blacklisted and no longer valid for future requests.
 
 
 ## Project Structure
