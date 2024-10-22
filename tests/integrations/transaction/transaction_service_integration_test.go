@@ -3,9 +3,11 @@ package transaction_test
 import (
 	"centralized-wallet/internal/database"
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/redis"
 	"centralized-wallet/internal/seed"
 	"centralized-wallet/internal/transaction"
 	"centralized-wallet/tests/testutils"
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -15,7 +17,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var dbService database.Service
+var (
+	dbService    database.Service
+	redisService *redis.RedisService
+)
 
 func TestMain(m *testing.M) {
 	// Start the Postgres container
@@ -24,17 +29,26 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Could not start Postgres container for testing: %v", err)
 	}
 
+	teardownRedis, err := testutils.StartRedisContainer()
+	if err != nil {
+		log.Fatalf("Could not start Redis container for testing: %v", err)
+	}
+
 	// Set up environment variables for the test database
 	testutils.InitEnv()
+	testutils.InitRDEnv()
 
 	// Initialize the database service only once
 	dbService = database.New()
-
+	redisService = redis.NewRedisService()
 	// Run the tests
 	code := m.Run()
 
 	// Teardown the container after the tests
 	testutils.TeardownContainer(teardown)
+	if teardownRedis != nil && teardownRedis(context.Background()) != nil {
+		log.Fatalf("could not teardown redis container: %v", err)
+	}
 
 	// Exit with the appropriate exit code
 	os.Exit(code)
@@ -128,7 +142,7 @@ func TestGetTransactionHistoryService(t *testing.T) {
 	setupFixtures()
 
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo, nil)
+	transactionService := transaction.NewTransactionService(transactionRepo, redisService)
 
 	// Define the test cases (table-driven test)
 	testCases := []struct {

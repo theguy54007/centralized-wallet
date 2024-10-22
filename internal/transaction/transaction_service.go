@@ -152,11 +152,19 @@ func (ts *TransactionService) FormatTransactionResponse(walletNumber string, tra
 }
 
 func (ts *TransactionService) paginateTransactions(transactions []models.FormattedTransaction, limit int, offset int) []models.FormattedTransaction {
+	// Check if the offset is within bounds
+	if offset >= len(transactions) {
+		// If offset is beyond the range of available data, return an empty slice
+		return []models.FormattedTransaction{}
+	}
+
+	// Determine start and end indices
 	start := offset
 	end := offset + limit
 	if end > len(transactions) {
 		end = len(transactions)
 	}
+
 	return transactions[start:end]
 }
 

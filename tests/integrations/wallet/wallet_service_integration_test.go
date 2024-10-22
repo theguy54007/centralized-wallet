@@ -3,11 +3,13 @@ package wallet_test
 import (
 	"centralized-wallet/internal/database"
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/redis"
 	"centralized-wallet/internal/seed"
 	"centralized-wallet/internal/transaction"
 	"centralized-wallet/internal/utils"
 	"centralized-wallet/internal/wallet"
 	"centralized-wallet/tests/testutils"
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -15,7 +17,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var dbService database.Service
+var (
+	dbService    database.Service
+	redisService *redis.RedisService
+)
 
 type testWalletService struct {
 	name                string
@@ -38,17 +43,27 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Could not start Postgres container for testing: %v", err)
 	}
 
+	teardownRedis, err := testutils.StartRedisContainer()
+	if err != nil {
+		log.Fatalf("Could not start Redis container for testing: %v", err)
+	}
+
 	// Set up environment variables for the test database
 	testutils.InitEnv()
+	testutils.InitRDEnv()
 
 	// Initialize the database service only once
 	dbService = database.New()
+	redisService = redis.NewRedisService()
 
 	// Run the tests
 	code := m.Run()
 
 	// Teardown the container after the tests
 	testutils.TeardownContainer(teardown)
+	if teardownRedis != nil && teardownRedis(context.Background()) != nil {
+		log.Fatalf("could not teardown redis container: %v", err)
+	}
 
 	// Exit with the appropriate exit code
 	os.Exit(code)
@@ -209,7 +224,7 @@ func TestDepositService(t *testing.T) {
 
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo, nil)
+	transactionService := transaction.NewTransactionService(transactionRepo, redisService)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 
 	// Define the test cases
@@ -274,7 +289,7 @@ func TestWithdrawService(t *testing.T) {
 	// Initialize the wallet repository and service
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo, nil)
+	transactionService := transaction.NewTransactionService(transactionRepo, redisService)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 
 	// Define the test cases
@@ -348,7 +363,7 @@ func TestTransferService(t *testing.T) {
 	// Initialize the wallet repository and service
 	walletRepo := wallet.NewWalletRepository(dbService.GetDB())
 	transactionRepo := transaction.NewTransactionRepository(dbService.GetDB())
-	transactionService := transaction.NewTransactionService(transactionRepo, nil)
+	transactionService := transaction.NewTransactionService(transactionRepo, redisService)
 	walletService := wallet.NewWalletService(walletRepo, transactionService)
 
 	// Define the test cases
