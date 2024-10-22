@@ -2,8 +2,8 @@ package user
 
 import (
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/utils"
 	"database/sql"
-	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -61,7 +61,7 @@ func (repo *UserRepository) GetUserByEmail(email string) (*models.User, error) {
 	err := repo.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.New("user not found")
+			return nil, utils.ErrUserNotFound
 		}
 		return nil, err
 	}

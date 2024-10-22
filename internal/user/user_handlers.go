@@ -38,9 +38,10 @@ func RegistrationHandler(us UserServiceInterface) gin.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, utils.ErrEmailAlreadyInUse) {
 				utils.ErrorResponse(c, utils.ErrEmailAlreadyInUse, nil, "")
-				return
+			} else {
+				utils.ErrorResponse(c, utils.ErrUserCreationFailed, err, "")
 			}
-			utils.ErrorResponse(c, utils.ErrUserCreationFailed, err, "")
+
 			return
 		}
 

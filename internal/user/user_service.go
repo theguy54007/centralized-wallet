@@ -3,7 +3,6 @@ package user
 import (
 	"centralized-wallet/internal/models"
 	"centralized-wallet/internal/utils"
-	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,7 +28,7 @@ func (us *UserService) RegisterUser(email, password string) (*models.User, error
 	// Check if the email is already in use before starting the transaction
 	emailInUse, err := us.repo.IsEmailInUse(email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check email: %v", err)
+		return nil, err
 	}
 	if emailInUse {
 		return nil, utils.ErrEmailAlreadyInUse
@@ -38,7 +37,7 @@ func (us *UserService) RegisterUser(email, password string) (*models.User, error
 	// Step 1: Create the user within the transaction
 	user, err := us.repo.CreateUser(email, password)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %v", err)
+		return nil, err
 	}
 
 	return user, nil

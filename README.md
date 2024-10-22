@@ -217,7 +217,7 @@ The project follows a clean, modular architecture with separation of concerns ac
 │   ├── mocks             # several mocking files like mock_wallet_service, mock_wallet_repo, mock_transaction_repo, etc
 │   └── testutils         # test use helper, test db and test redis related code
 ├── logs
-│    └── app.logs         # append log to log file
+│   └── app.logs          # append log to log file, which will be gitignore
 └── Makefile              # Commands for seeding data, running tests, and other utilities
 ```
 
@@ -228,7 +228,7 @@ Each domain (e.g., `wallet`, `user`, `transaction`) is modularized into three la
 #### 1. **Handler Layer**
 
 - **Purpose**: Handles HTTP requests, validates input, and returns responses.
-- **Example**: `wallet/handler.go`
+- **Example**: `wallet/wallet_handler.go`
 - **Flow**:
   - Receives requests, validates the request payload.
   - Calls the service layer to handle the business logic.
@@ -237,7 +237,7 @@ Each domain (e.g., `wallet`, `user`, `transaction`) is modularized into three la
 #### 2. **Service Layer**
 
 - **Purpose**: Contains business logic and coordinates between handlers and repositories. Can also communicate with other services when necessary.
-- **Example**: `wallet/service.go`
+- **Example**: `wallet/wallet_service.go`
 - **Flow**:
   - Handles business logic (e.g., transferring funds between wallets).
   - Interacts with other services as needed (e.g., `WalletService` interacts with `TransactionService` to record transactions).
@@ -246,7 +246,7 @@ Each domain (e.g., `wallet`, `user`, `transaction`) is modularized into three la
 #### 3. **Repository Layer**
 
 - **Purpose**: Direct database interactions. Isolates data access logic.
-- **Example**: `wallet/repository.go`
+- **Example**: `wallet/wallet_repository.go`
 - **Flow**:
   - Defines methods for interacting with the database.
   - Service layer depends on repositories to handle data persistence and querying.

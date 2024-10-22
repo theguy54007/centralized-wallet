@@ -27,11 +27,10 @@ func BalanceHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			switch err {
 			case utils.RepoErrWalletNotFound:
 				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
-				return
 			default:
 				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[BalanceHandler] Error getting wallet by user ID")
-				return
 			}
+			return
 		}
 
 		// Respond with balance
@@ -68,11 +67,10 @@ func DepositHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			switch err {
 			case utils.RepoErrWalletNotFound:
 				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
-				return
 			default:
 				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[DepositHandler] Error depositing amount")
-				return
 			}
+			return
 		}
 
 		// Return structured success response
@@ -108,14 +106,12 @@ func WithdrawHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			switch err {
 			case utils.RepoErrUserNotFound:
 				utils.ErrorResponse(c, utils.ErrUserNotFound, nil, "")
-				return
 			case utils.RepoErrInsufficientFunds:
 				utils.ErrorResponse(c, utils.ErrorInsufficientFunds, nil, "")
-				return
 			default:
 				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[WithdrawHandler] Error withdrawing amount")
-				return
 			}
+			return
 		}
 
 		// Return structured success response
@@ -152,17 +148,14 @@ func TransferHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			switch err {
 			case utils.RepoErrUserNotFound:
 				utils.ErrorResponse(c, utils.ErrUserNotFound, nil, "")
-				return
 			case utils.RepoErrWalletNotFound:
 				utils.ErrorResponse(c, utils.ErrWalletNotFound, nil, "")
-				return
 			case utils.RepoErrInsufficientFunds:
 				utils.ErrorResponse(c, utils.ErrorInsufficientFunds, nil, "")
-				return
 			default:
 				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[TransferHandler] Error transferring amount")
-				return
 			}
+			return
 		}
 
 		// Success response with the updated wallet balance
@@ -254,11 +247,10 @@ func CreateWalletHandler(ws WalletServiceInterface) gin.HandlerFunc {
 			switch err {
 			case utils.ErrWalletAlreadyExists:
 				utils.ErrorResponse(c, utils.ErrWalletAlreadyExists, nil, "")
-				return
 			default:
 				utils.ErrorResponse(c, utils.ErrInternalServerError, err, "[CreateWalletHandler] Error creating wallet")
-				return
 			}
+			return
 		}
 
 		// Return structured success response with wallet number
