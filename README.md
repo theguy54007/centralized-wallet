@@ -837,7 +837,7 @@ Redis’ fast in-memory storage and eviction policies make it a great fit for ta
     - The project is designed with a clear separation of concerns, making it easy to maintain and extend.
     - **Dependency Injection** is used to decouple services and repositories, simplifying testing and enhancing flexibility.
 
-## Explaining Any Decisions You Made
+### Explaining Any Decisions You Made
 
 1. **JWT for Authentication**:
    - JWT was chosen for its stateless nature, scalability, and simplicity. It ensures security with token expiration set to 72 hours. Redis was used to implement token blacklisting for invalidating tokens upon logout. A refresh token mechanism was not included due to time constraints but could be added later.
