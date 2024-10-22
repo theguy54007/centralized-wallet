@@ -2,18 +2,20 @@ package seed
 
 import (
 	"centralized-wallet/internal/models"
+	"centralized-wallet/internal/user"
 	"database/sql"
 	"fmt"
 )
 
-func SeedUser(db *sql.DB, user *models.User) error {
+func SeedUser(db *sql.DB, userData *models.User) error {
+	hashedPassword, _ := user.HashPassword(userData.Password)
 	_, err := db.Exec(`
 		INSERT INTO users (
 			email,
 			password
 		) VALUES ($1, $2)`,
-		user.Email,
-		user.Password,
+		userData.Email,
+		hashedPassword,
 	)
 
 	if err != nil {
@@ -27,17 +29,17 @@ func GenerateSampleUsers() []models.User {
 	return []models.User{
 		{
 			ID:       1,
-			Email:    "alice@example.com",
+			Email:    "jack@example.com",
 			Password: "password1", // In reality, this would be hashed
 		},
 		{
 			ID:       2,
-			Email:    "bob@example.com",
+			Email:    "david@example.com",
 			Password: "password2",
 		},
 		{
 			ID:       3,
-			Email:    "charlie@example.com",
+			Email:    "carole@example.com",
 			Password: "password3",
 		},
 	}
