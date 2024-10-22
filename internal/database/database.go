@@ -134,3 +134,13 @@ func initEnv() {
 	database = os.Getenv("DB_DATABASE")
 	schema = os.Getenv("DB_SCHEMA")
 }
+
+func InitDB() Service {
+	dbService := New()
+
+	if dbService.GetDB() == nil {
+		log.Fatal("Failed to connect to the database")
+	}
+
+	return dbService
+}

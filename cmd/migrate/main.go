@@ -16,7 +16,7 @@ func main() {
 	migrateDirection, steps, forceVersion, showVersion := parseFlags()
 
 	// Initialize the database connection
-	dbService := initDB()
+	dbService := database.InitDB()
 	defer closeDB(dbService)
 
 	// Create the migration instance
@@ -37,15 +37,15 @@ func parseFlags() (migrateDirection *string, steps *int, forceVersion *int, show
 }
 
 // initDB initializes the database service and connection
-func initDB() database.Service {
-	dbService := database.New()
+// func initDB() database.Service {
+// 	dbService := database.New()
 
-	if dbService.GetDB() == nil {
-		log.Fatal("Failed to connect to the database")
-	}
+// 	if dbService.GetDB() == nil {
+// 		log.Fatal("Failed to connect to the database")
+// 	}
 
-	return dbService
-}
+// 	return dbService
+// }
 
 // closeDB closes the database connection
 func closeDB(dbService database.Service) {

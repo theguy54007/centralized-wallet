@@ -43,6 +43,14 @@ create-migration:
 	@echo "executing Creating Migration..."
 	@migrate create -ext sql -dir ./migrations -seq $(t)
 
+seed:
+	@echo "executing Seed..."
+	@go run cmd/seed/main.go
+
+seed-truncate:
+	@echo "executing Seed Truncate..."
+	@go run cmd/seed/main.go --truncate
+
 # Test the application
 test:
 	@echo "Testing..."
