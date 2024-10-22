@@ -403,6 +403,7 @@ Here is a list of available API endpoints:
         "updated_at": "2024-10-22T03:57:24.434923Z"
       }
     }
+    ```
 
     - Error: `400 Bad Request`
 
@@ -572,14 +573,14 @@ Here is a list of available API endpoints:
   }
   ```
 
-- Error: `401 Unauthorized`
+  - Error: `401 Unauthorized`
 
-  ```json
-  {
-    "status": "error",
-    "message": "Invalid token"
-  }
-  ```
+    ```json
+    {
+      "status": "error",
+      "message": "Invalid token"
+    }
+    ```
 
 - **All Internal Server Error**:
   - Error: `500 Internal Server Error`
