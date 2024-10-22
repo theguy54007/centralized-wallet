@@ -8,6 +8,7 @@
 - [API Workflow](#api-workflow)
 - [Project Structure](#project-structure)
   - [Project Boostrap](#project-bootstrap)
+  - [Structure](#structure)
   - [Domain Structure](#domain-structure)
   - [Authentication Mechanism](#authentication-mechanism)
   - [API Endpoints](#api-endpoints)
@@ -170,6 +171,7 @@ Authorization: Bearer <your-jwt-token-here>
 
 This project was bootstrapped using **go-blueprint**, which provides a well-structured Go project starter template. The template helped set up the architecture, environment configuration, testing, and database handling. More information about go-blueprint can be found [here](https://github.com/Melkeydev/go-blueprint).
 
+### Structure
 
 The project follows a clean, modular architecture with separation of concerns across different layers. Here's an overview of the directory structure:
 
@@ -279,6 +281,24 @@ Here is a list of available API endpoints:
     }
     ```
 
+    - Error: `400 Bad Request`
+
+    ```json
+    {
+      "status": "error",
+      "message": "Invalid email format"
+    }
+    ```
+
+    - Error: `400 Bad Request`
+
+    ```json
+    {
+      "status": "error",
+      "message": "Password must be at least 6 characters"
+    }
+    ```
+
 - **POST /login**: Login a user.
   - **Request**: `{ "email": "user@example.com", "password": "password" }`
   - **Response**:
@@ -340,14 +360,7 @@ Here is a list of available API endpoints:
     }
     ```
 
-    - Error: `401 Unauthorized`
 
-    ```json
-    {
-      "status": "error",
-      "message": "Authorization token is required"
-    }
-    ```
 
 - **POST /wallets/deposit**: Deposit money into the user's wallet.
   - **Headers**: `{ "Authorization": "Bearer jwt_token_here" }`
@@ -363,15 +376,6 @@ Here is a list of available API endpoints:
         "balance": 200,
         "updated_at": "2024-10-22T03:54:13.521945Z"
       }
-    }
-    ```
-
-    - Error: `401 Unauthorized`
-
-    ```json
-    {
-      "status": "error",
-      "message": "Authorization token is required"
     }
     ```
 
@@ -399,15 +403,6 @@ Here is a list of available API endpoints:
         "updated_at": "2024-10-22T03:57:24.434923Z"
       }
     }
-    ```
-    - Error: `401 Unauthorized`
-
-    ```json
-    {
-      "status": "error",
-      "message": "Authorization token is required"
-    }
-    ```
 
     - Error: `400 Bad Request`
 
@@ -432,15 +427,6 @@ Here is a list of available API endpoints:
         "balance": 11800,
         "updated_at": "2024-10-22T04:04:06.175189Z"
       }
-    }
-    ```
-
-    - Error: `401 Unauthorized`
-
-    ```json
-    {
-      "status": "error",
-      "message": "Authorization token is required"
     }
     ```
 
@@ -497,14 +483,6 @@ Here is a list of available API endpoints:
     }
     ```
 
-    - Error: `401 Unauthorized`
-
-    ```json
-    {
-      "status": "error",
-      "message": "Authorization token is required"
-    }
-    ```
 
 - **GET /wallets/transactions**: View the user's transaction history.
   - **Headers**: `{ "Authorization": "Bearer jwt_token_here" }`
@@ -574,6 +552,55 @@ Here is a list of available API endpoints:
       "message": "Invalid offset, must be a non-negative integer"
     }
     ```
+
+- **All required token API error**:
+  - Error: `401 Unauthorized`
+
+  ```json
+  {
+    "status": "error",
+    "message": "Invalid authorization format"
+  }
+  ```
+
+  - Error: `401 Unauthorized`
+
+  ```json
+  {
+    "status": "error",
+    "message": "Authorization token is required"
+  }
+  ```
+
+- Error: `401 Unauthorized`
+
+  ```json
+  {
+    "status": "error",
+    "message": "Invalid token"
+  }
+  ```
+
+- **All Internal Server Error**:
+  - Error: `500 Internal Server Error`
+
+  ```json
+  {
+    "status": "error",
+    "message": "Internal Server Error"
+  }
+  ```
+
+  - Error: `500 Internal Server Error`
+
+    ```json
+    {
+      "status": "error",
+      "message": "Database operation failed"
+    }
+    ```
+
+
 
 ---
 
