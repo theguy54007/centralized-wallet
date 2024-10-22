@@ -154,6 +154,10 @@ Authorization: Bearer <your-jwt-token-here>
 
  After obtaining the JWT token, you can interact with all wallet-related API endpoints by including the token in the Authorization header.
 
+### 5. Logout
+
+  Use the POST /logout endpoint to invalidate the token and log out the user. After logging out, the token will be blacklisted and no longer valid for future requests.
+
 ### API Workflow Overview
 
 1. **Register or Seed Data**:
