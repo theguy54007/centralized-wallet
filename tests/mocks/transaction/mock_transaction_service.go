@@ -18,10 +18,16 @@ func (m *MockTransactionService) RecordTransaction(tx *sql.Tx, fromWalletNumber,
 }
 
 // GetTransactionHistory mocks the GetTransactionHistory function
-func (m *MockTransactionService) GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.TransactionWithEmails, error) {
+func (m *MockTransactionService) GetTransactionHistory(walletNumber string, orderBy string, limit, offset int) ([]models.FormattedTransaction, error) {
 	args := m.Called(walletNumber, orderBy, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]models.TransactionWithEmails), args.Error(1)
+	return args.Get(0).([]models.FormattedTransaction), args.Error(1)
+}
+
+// formatTransactionResponse mocks the formatTransactionResponse function
+func (m *MockTransactionService) FormatTransactionResponse(walletNumber string, transactions []models.TransactionWithEmails) []models.FormattedTransaction {
+	args := m.Called(walletNumber, transactions)
+	return args.Get(0).([]models.FormattedTransaction)
 }

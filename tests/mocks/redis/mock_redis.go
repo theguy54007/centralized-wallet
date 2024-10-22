@@ -25,3 +25,7 @@ func (m *MockRedisClient) Set(ctx context.Context, key string, value interface{}
 }
 
 // Other Redis functions can be added if needed for your tests
+func (m *MockRedisClient) DeleteKeysByPattern(ctx context.Context, pattern string) error {
+	args := m.Called(ctx, pattern)
+	return args.Error(0)
+}

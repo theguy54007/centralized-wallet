@@ -19,6 +19,7 @@ type RedisService struct {
 type RedisServiceInterface interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	DeleteKeysByPattern(ctx context.Context, pattern string) error
 }
 
 var (
@@ -111,6 +112,19 @@ func calculatePoolUtilization(poolStats *redis.PoolStats) float64 {
 		return 0
 	}
 	return float64(poolStats.TotalConns-poolStats.IdleConns) / float64(poolStats.TotalConns) * 100
+}
+
+func (r *RedisService) DeleteKeysByPattern(ctx context.Context, pattern string) error {
+	iter := r.Client.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		if err := r.Client.Del(ctx, iter.Val()).Err(); err != nil {
+			return err
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // parseRedisInfo parses the Redis info response into a key-value map.

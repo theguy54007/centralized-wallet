@@ -1,8 +1,6 @@
 package utils
 
 import (
-	// "centralized-wallet/internal/apperrors"
-	"centralized-wallet/internal/logging"
 	"log"
 	"net/http"
 
@@ -25,7 +23,9 @@ func SuccessResponse(c *gin.Context, message string, data interface{}) {
 }
 
 func ErrorResponse(c *gin.Context, err *AppError, internalErr error, context string) {
-	logError(internalErr, err.Message, context)
+	if internalErr != nil {
+		logError(internalErr, err.Message, context)
+	}
 	c.JSON(err.Code, APIResponse{
 		Status:  "error",
 		Message: err.Message,
@@ -33,6 +33,6 @@ func ErrorResponse(c *gin.Context, err *AppError, internalErr error, context str
 }
 
 func logError(err error, message string, context string) {
+	// Log the error details safely
 	log.Printf("[ERROR] %s: %s, Details: %v", context, message, err)
-	logging.Log.Error(err, message, context)
 }
