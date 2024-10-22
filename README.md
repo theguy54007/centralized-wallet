@@ -4,22 +4,25 @@
 # Table of Contents
 
 - [Overview](#overview)
+- [Installation and Setup](#installation-and-setup)
+- [API Workflow](#api-workflow)
 - [Project Structure](#project-structure)
-- [Authentication Mechanism](#authentication-mechanism)
-- [Database Schema](#database-schema)
-- [API Endpoints](#api-endpoints)
-- [How to Use the API](#how-to-use-the-api)
-  - [Authentication and Wallet Creation](#authentication-and-wallet-creation)
-- [Error Handling](#error-handling)
-- [Logging](#logging)
-- [Middleware](#middleware)
-- [Migration](#migration)
+  - [Domain Structure](#domain-structure)
+  - [Authentication Mechanism](#authentication-mechanism)
+  - [Project Boostrap](#project-bootstrap)
+  - [API Endpoints](#api-endpoints)
+  - [Error Handling](#error-handling)
+  - [Logging](#logging)
+  - [Middleware](#middleware)
+  - [Migration](#migration)
+  - [Database Schema Overview](#database-schema-overview)
 - [Testing](#testing)
-- [Redis Integration](#redis-integration)
-- [Satisfying Functional and Non-Functional Requirements](#satisfying-functional-and-non-functional-requirements)
-- [Areas for Future Improvement](#areas-for-future-improvement)
-- [Explaining Decisions Made](#explaining-decisions-made)
-- [Features Chosen Not to Implement](#features-chosen-not-to-implement)
+- [Redis Usage](#redis-usage)
+- [Interview Related](#interview-related)
+  - [Satisfying Functional and Non-Functional Requirements](#satisfying-functional-and-non-functional-requirements)
+  - [Explaining Any Decisions You Made](#explaining-any-decisions-you-made)
+  - [Features Not Included in the Submission](#features-not-included-in-the-submission)
+  - [Areas for Future Improvement](#areas-for-future-improvement)
 - [Conclusion](#conclusion)
 
 ## Overview
@@ -571,21 +574,6 @@ Here is a list of available API endpoints:
 
 ---
 
-### Authentication Workflow
-
-1. **Register a User**:
-   You can either register a new user via the `/register` API or generate seed data using the `make seed` command.
-   - To reseed with a clean DB, use the command: `make seed-truncate`.
-
-2. **Login to Get JWT Token**:
-   Use the `/login` API to authenticate and retrieve the JWT token.
-
-3. **Create a Wallet**:
-   After logging in, you need to create a wallet using the `/wallets/create` API. This step is mandatory to perform any wallet-related actions.
-
-4. **Use Token for Authenticated Requests**:
-   For wallet-related actions
-
 ## Error Handling
 
 In this project, I consolidated the error handling and response structure into a single utility package (`utils`). This approach allows for unified handling of both success and error responses, making the code more maintainable and consistent across the application.
@@ -643,29 +631,6 @@ For database migrations, I use the **Golang Migrate** library, a widely used too
   - `make db-rollback`: Rolls back the last applied migration.
   - `make seed`: Seeds the database with initial test data.
   - `make seed-truncate`: Truncates existing data and re-seeds the database.
-
-### Example Migration Script
-
-```sql
--- create_users_table.up.sql
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- create_wallets_table.up.sql
-CREATE TABLE wallets (
-    id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
-    wallet_number VARCHAR(20) UNIQUE NOT NULL,
-    balance DECIMAL(18,2) DEFAULT 0.00,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-```
 
 ## Database Schema Overview
 
