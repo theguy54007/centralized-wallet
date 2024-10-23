@@ -46,9 +46,9 @@ func TestRegistrationHandler_Success(t *testing.T) {
 
 	router := setupRouter()
 	router.POST("/register", RegistrationHandler(mockHandlerTestHelper.userService))
-	mockHandlerTestHelper.userService.On("RegisterUser", email, password).Return(&models.User{ID: 1, Email: "test@example.com"}, nil)
+	mockHandlerTestHelper.userService.On("RegisterUser", email, password).Return(&models.User{ID: 1, Email: email}, nil)
 
-	body := map[string]interface{}{"email": "test@example.com", "password": password}
+	body := map[string]interface{}{"email": email, "password": password}
 	w := testutils.ExecuteRequest(router, "POST", "/register", body, "")
 	testutils.AssertAPISuccessResponse(t, w, utils.MsgUserRegistered, models.User{ID: 1, Email: email})
 }
@@ -98,10 +98,11 @@ func TestLoginHandler_Success(t *testing.T) {
 // Test login handler with incorrect password
 func TestLoginHandler_IncorrectPassword(t *testing.T) {
 	router := setupRouter()
-	mockHandlerTestHelper.userService.On("LoginUser", "test@example.com", "wrongpassword").Return(nil, errors.New("invalid password"))
+	wrongpassword := "wrongpassword"
+	mockHandlerTestHelper.userService.On("LoginUser", email, wrongpassword).Return(nil, errors.New("invalid password"))
 	router.POST("/login", LoginHandler(mockHandlerTestHelper.userService))
 
-	body := map[string]interface{}{"email": "test@example.com", "password": "wrongpassword"}
+	body := map[string]interface{}{"email": email, "password": wrongpassword}
 	w := testutils.ExecuteRequest(router, "POST", "/login", body, "")
 
 	testutils.AssertAPIErrorResponse(t, w, utils.ErrInvalidCredentials)
