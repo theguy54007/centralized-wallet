@@ -36,17 +36,6 @@ func parseFlags() (migrateDirection *string, steps *int, forceVersion *int, show
 	return
 }
 
-// initDB initializes the database service and connection
-// func initDB() database.Service {
-// 	dbService := database.New()
-
-// 	if dbService.GetDB() == nil {
-// 		log.Fatal("Failed to connect to the database")
-// 	}
-
-// 	return dbService
-// }
-
 // closeDB closes the database connection
 func closeDB(dbService database.Service) {
 	if err := dbService.Close(); err != nil {

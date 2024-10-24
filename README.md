@@ -84,19 +84,25 @@ This project follows best practices for error handling, logging, and test covera
       make docker-run
       ```
 
-  6. After Docker posgtres is ready, run migration
+  6. After the Docker PostgreSQL container is ready, create the database using the name specified in the environment file under "DB_DATABASE".
+
+      ```bash
+      make db-create
+      ```
+
+  7. After database created, run migration
 
       ```bash
       make db-migrate
       ```
 
-  7. Generate User Seed data
+  8. Generate User Seed data
 
       ```bash
       make seed
       ```
 
-  8. Run the API server:
+  9. Run the API server:
 
       ```bash
       make run
