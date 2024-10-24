@@ -40,17 +40,29 @@ var (
 	dbInstance *service
 )
 
-func New() Service {
+func New(connectToTargetDB ...bool) Service {
 	// Reuse Connection
 	if dbInstance != nil {
 		return dbInstance
 	}
 
+	shouldConnectToTargetDB := true
+	if len(connectToTargetDB) > 0 {
+		shouldConnectToTargetDB = connectToTargetDB[0]
+	}
+
 	initEnv()
 
+	// If the target database hasn't been created yet, connect to "postgres" instead
+	targetDatabase := database
+	if !shouldConnectToTargetDB {
+		log.Println("Connecting to 'postgres' database to check or create target database.")
+		targetDatabase = "postgres"
+	}
+
 	log.Printf("Connecting to database with: postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		username, password, host, port, database)
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
+		username, password, host, port, targetDatabase)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, targetDatabase, schema)
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		log.Fatal(err)

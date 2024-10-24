@@ -30,6 +30,11 @@ docker-down:
 		docker-compose down; \
 	fi
 
+# create DB
+db-create:
+	@echo "Creating Database..."
+	@go run cmd/create_db/main.go
+
 # migration
 db-migrate:
 	@echo "executing Migration..."
